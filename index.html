@@ -89,9 +89,9 @@
     </button>
 
     <div class="sidebar-footer">
-      <a href="#" id="side-youtube" target="_blank" rel="noopener">▶ YouTube</a>
-      <a href="#" id="side-medium" target="_blank" rel="noopener">✍ Medium</a>
-      <a href="#" id="side-linkedin" target="_blank" rel="noopener">in LinkedIn</a>
+      <a href="https://www.youtube.com/channel/UC2q-vZWSlQpiGiMcSLUqnIg" id="side-youtube" target="_blank" rel="noopener">▶ YouTube</a>
+      <a href="https://medium.com/@mahendraa1188" id="side-medium" target="_blank" rel="noopener">✍ Medium</a>
+      <a href="https://www.linkedin.com/in/mahendra-singh-%F0%9F%87%AE%F0%9F%87%B3%F0%9F%9A%80%E2%9D%84%EF%B8%8F-%F0%9F%90%8D-%F0%9F%A6%84-83699485/" id="side-linkedin" target="_blank" rel="noopener">in LinkedIn</a>
     </div>
   </aside>
 
@@ -111,7 +111,7 @@
           <div class="hero-meta">
             <span class="chip">18 Tables · Star Schema</span>
             <span class="chip">2,299 Employees · 1,338 Active</span>
-            <span class="chip">67 KPIs with DAX</span>
+            <span class="chip">10 must-know KPIs · 67 in total</span>
             <span class="chip">Excel → SQL → Tableau → Power BI → QA</span>
           </div>
           <div class="hero-cta">
@@ -125,24 +125,31 @@
           <img src="assets/hero-dashboard.webp" alt="Proxima Business Services HR dashboard concept — total employees, new hires, attrition rate, retention gauge, headcount trend, department-wise headcount and attrition by department">
           <div class="cap">Concept design for inspiration — illustrative values. Your dashboard must use the numbers from the dataset (see KPI Library answer key).</div>
         </div>
-        <div class="card counter-card">
-          <div class="cc-label">Students visited</div>
-          <div class="cc-number" id="visitor-count">…</div>
-          <div class="cc-sub">and counting. Share it with your study group!</div>
-        </div>
         <div class="card social-card">
           <img src="assets/mahendra-photo.jpg" alt="Mahendra Singh" class="social-avatar">
           <div class="social-title">Learn with Mahendra Singh</div>
           <div class="social-links">
-            <a href="#" id="social-youtube" target="_blank" rel="noopener"><img class="sl-badge-img" src="assets/youtube-icon.png" alt="">YouTube channel</a>
-            <a href="#" id="social-medium" target="_blank" rel="noopener"><img class="sl-badge-img" src="assets/medium-icon.png" alt="">Medium blog</a>
-            <a href="#" id="social-linkedin" target="_blank" rel="noopener"><i class="sl-badge sl-li">in</i>LinkedIn</a>
+            <a href="https://www.youtube.com/channel/UC2q-vZWSlQpiGiMcSLUqnIg" id="social-youtube" target="_blank" rel="noopener"><img class="sl-badge-img" src="assets/youtube-icon.png" alt="">YouTube channel</a>
+            <a href="https://medium.com/@mahendraa1188" id="social-medium" target="_blank" rel="noopener"><img class="sl-badge-img" src="assets/medium-icon.png" alt="">Medium blog</a>
+            <a href="https://www.linkedin.com/in/mahendra-singh-%F0%9F%87%AE%F0%9F%87%B3%F0%9F%9A%80%E2%9D%84%EF%B8%8F-%F0%9F%90%8D-%F0%9F%A6%84-83699485/" id="social-linkedin" target="_blank" rel="noopener"><i class="sl-badge sl-li">in</i>LinkedIn</a>
           </div>
         </div>
         </div>
       </div>
       <div class="callout-yellow">
         <strong>How to use this site:</strong> Follow the <strong>Learning Journey</strong> below, one step at a time. Each step has a <em>Start →</em> button that opens the right page, and you can tick it off when you're done. Your progress is saved on this device. Know the Data Model and KPI logic cold (that's where most students fumble in QA, especially the headcount-at-a-date rule), then practise with the Assignments and the Analyst Thinking Lab. For a much deeper question bank across SQL, Power BI, Tableau and Excel, <a href="https://www.crackanalytics.com/" target="_blank" rel="noopener">CrackAnalytics</a> is Mahendra's dedicated prep course.
+      </div>
+      <div class="disclaimer-box">
+        <strong>🎓 Educational case study.</strong> Proxima Business Services is a fictional organisation created for teaching. All employee records, salaries, survey responses and HR events in this project are synthetic and do not represent real people. <strong>Never upload real employee data (names, salaries, PAN, phone numbers) into this project or any public portfolio.</strong>
+      </div>
+      <div class="section-head mt-40" style="margin-bottom:14px;">
+        <div class="eyebrow">Where should I start?</div>
+        <h2>Pick your starting point</h2>
+      </div>
+      <div class="start-grid">
+        <div class="start-card lvl-1"><div class="lvl">🟢 Beginner</div><h4>New to data projects</h4><p>Follow the 10-step guided journey from the business problem to the final presentation. Start with the 10 P1 KPIs only.</p><button class="btn-blue" data-goto="journey-anchor">Start Guided Project →</button></div>
+        <div class="start-card lvl-2"><div class="lvl">🟡 Intermediate</div><h4>Know SQL / Power BI basics</h4><p>Jump to the data model and KPI library, then prove yourself in the Assignments with auto-checked answers.</p><button class="btn-blue" data-goto="model">Start Analytics →</button></div>
+        <div class="start-card lvl-3"><div class="lvl">🔵 Interview Ready</div><h4>Project done, interview coming</h4><p>Drill the project questions, avoid the common traps, practise the 90-second pitch and copy your resume block.</p><button class="btn-blue" data-goto="interview">Start Interview Prep →</button></div>
       </div>
       <div class="stat-strip" id="stat-strip"></div>
       <div class="card progress-mini mt-16" id="home-progress"></div>
@@ -341,6 +348,7 @@
       <div class="card" style="padding:24px;">
         <h4 style="font-size:15px;margin-bottom:10px;">Checklist: what's still open</h4>
         <div id="progress-todo" style="font-size:13.5px;color:var(--ink-muted);"></div>
+        <div class="cert-box" id="cert-box"></div>
         <div style="margin-top:18px;"><button class="reset-link" id="reset-progress">Reset all my progress on this device</button></div>
       </div>
     </div>
@@ -409,6 +417,7 @@
       <h2>18 tables, one HR data warehouse</h2>
       <p>The full dataset (Excel workbook + CSV files) is shared separately by your trainer. This page tells you what's inside before you open it.</p>
     </div>
+    <div class="disclaimer-box" style="margin-bottom:16px;"><strong>🎓 Synthetic data.</strong> Every person, salary and HR event in these 18 tables is generated for teaching. Proxima Business Services is fictional. Do not mix real employee PII into this project.</div>
     <div class="callout">
       <h4>Coverage windows: read this before you filter anything</h4>
       <p id="coverage-text"></p>
@@ -517,6 +526,15 @@
       <h2>All 67 HR KPIs: the question, the logic, the DAX and the answer key</h2>
       <p>Filter by category. Each card gives the business question first, then the plain-English logic, the formula and a sample DAX measure, plus the value your dashboard should show for calendar years 2024 and 2025.</p>
     </div>
+    <div class="kpi-roadmap">
+      <div class="kr-step kr-p1"><div class="kr-t">P1 · Must know</div><div class="kr-n" id="kr-p1"></div><p>Build these first. They appear in every HR dashboard and every interview.</p></div>
+      <div class="kr-arrow">→</div>
+      <div class="kr-step kr-p2"><div class="kr-t">P2 · Important</div><div class="kr-n" id="kr-p2"></div><p>Add once P1 reconciles to SQL. Drivers, hiring, pay and engagement.</p></div>
+      <div class="kr-arrow">→</div>
+      <div class="kr-step kr-p3"><div class="kr-t">P3 · Advanced</div><div class="kr-n" id="kr-p3"></div><p>Stretch goals for a standout portfolio.</p></div>
+    </div>
+    <div class="callout-yellow" style="margin:0 0 16px;"><strong>Don't build all 67 at once.</strong> Master the P1 KPIs first, get them to match the answer key, then move on.</div>
+    <div class="filter-bar" id="kpi-tier-pills"></div>
     <div class="filter-bar">
       <input class="search-input" id="kpi-search" type="text" placeholder="Search KPIs — e.g. &quot;attrition&quot;, &quot;offer&quot;, &quot;eNPS&quot;…">
       <button class="pill starred-only-pill" id="kpi-starred-toggle">★ Starred only</button>
@@ -541,6 +559,7 @@
       <h2>The queries this project is built on (MySQL)</h2>
       <p>From loading and exploring the data to KPI queries and the mart view. Every expected value in the comments comes from the real dataset, so if yours differs, something in your load or logic is off.</p>
     </div>
+    <div class="practice-bar"><div><strong>🎯 Practice mode</strong><span>Hide the SQL so you try first: read the task, write your query, use the hint, then reveal the solution and compare results.</span></div><button class="btn-blue" id="sql-practice-toggle">Turn practice mode ON</button></div>
     <div class="filter-bar" id="sql-pills"></div>
     <div id="sql-list"></div>
   </div>
@@ -664,7 +683,9 @@
       <h2>Questions this project actually gets asked</h2>
       <p>Grouped by round: project, SQL, Power BI, Tableau, data modeling, HR domain and scenarios. Tap a question to expand the answer approach, and mark ones you've nailed to track progress.</p>
     </div>
-    <div class="quiz-launch-card">
+    <div class="section-head" style="margin-bottom:12px;"><div class="eyebrow">⚠️ Common Interview Traps</div><h3 style="font-size:20px;">The mistakes interviewers are listening for</h3></div>
+    <div class="trap-grid" id="trap-grid"></div>
+    <div class="quiz-launch-card mt-16">
       <div>
         <h4>🎴 Flashcard Quiz Mode</h4>
         <p>Flip through questions one at a time, hide the answer, then self-grade. A faster way to drill than reading top to bottom.</p>
@@ -726,6 +747,12 @@
       <div class="pitch-checks" id="pitch-checks"></div>
       <div class="copy-row"><button class="btn-dark" id="pitch-save">✓ Save &amp; mark practiced</button></div>
     </div>
+    <div class="section-head mt-40">
+      <div class="eyebrow">5-Minute Project Presentation</div>
+      <h2>When they say "present your project"</h2>
+      <p>Seven slides, about five minutes. Build the deck in this order, using your own dashboard screenshots.</p>
+    </div>
+    <div class="pres-list" id="pres-list"></div>
     <div class="section-head mt-40">
       <div class="eyebrow">FAQ</div>
       <h2>What if the interview doesn't go as scripted?</h2>
@@ -827,7 +854,7 @@
     <div class="footer-links">
       <a href="https://www.linkedin.com/in/mahendra-singh-83699485/" target="_blank" rel="noopener">LinkedIn</a>
       <a href="https://medium.com/@mahendraa1188" target="_blank" rel="noopener">Medium</a>
-      <a href="#" id="youtube-link" target="_blank" rel="noopener">YouTube</a>
+      <a href="https://www.youtube.com/channel/UC2q-vZWSlQpiGiMcSLUqnIg" id="youtube-link" target="_blank" rel="noopener">YouTube</a>
     </div>
   </div>
 </footer>

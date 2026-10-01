@@ -12,13 +12,18 @@ const CERTIVA_URL = "https://www.certiva.co.in/";
 const CRACKANALYTICS_URL = "https://www.crackanalytics.com/";
 
 /* ---------------- KPIs (from the KPI catalogue) ---------------- */
-const P1_KPIS = new Set(["Headcount (Closing)", "Average Headcount", "New Hires", "Separations (Exits)", "Overall Attrition Rate %", "Voluntary Attrition %",
+const P1_KPIS_OLD = new Set(["Headcount (Closing)", "Average Headcount", "New Hires", "Separations (Exits)", "Overall Attrition Rate %", "Voluntary Attrition %",
   "Regrettable Attrition %", "Retention Rate %", "Gender Diversity (Female %)", "Time to Fill (Days)", "Offer Acceptance Rate %", "Cost per Hire (INR)",
   "Total Employer Cost (INR Cr)", "Median Compa-Ratio", "Average Annual Hike %", "Gender Pay Gap % (Level-Adjusted)", "High Performer % (Rating 4-5)",
   "Promotion Rate %", "Training Hours per Employee", "Absenteeism Rate % (Unplanned)", "Employee Net Promoter Score (eNPS)", "Engagement Index %", "Early Attrition % (Tenure < 1 Year)"]);
+const P1_KPIS = new Set(["Headcount (Closing)", "Average Headcount", "New Hires", "Separations (Exits)", "Overall Attrition Rate %", "Voluntary Attrition %",
+  "Gender Diversity (Female %)", "Time to Fill (Days)", "Total Employer Cost (INR Cr)", "Employee Net Promoter Score (eNPS)"]);
+const P2_KPIS = new Set(["Opening Headcount", "Net Headcount Change", "Headcount Growth %", "Average Tenure (Years)", "Regrettable Attrition %", "Early Attrition % (Tenure < 1 Year)",
+  "Retention Rate %", "Top Voluntary Exit Reason", "Offer Acceptance Rate %", "Cost per Hire (INR)", "Open Requisitions", "Average Annual CTC (INR Lakh)", "Median Compa-Ratio",
+  "Average Annual Hike %", "Gender Pay Gap % (Level-Adjusted)", "High Performer % (Rating 4-5)", "Promotion Rate %", "Training Hours per Employee", "Absenteeism Rate % (Unplanned)", "Engagement Index %"]);
 const KPIS = (HR.kpis || []).map(k => ({
   id: k.id, name: k.name, cat: k.cat, q: k.q, desc: k.logic, plain: k.plain, formula: k.dax, table: k.tables,
-  unit: k.unit, dir: k.dir, bench: k.bench, v24: k.v24, v25: k.v25, prio: P1_KPIS.has(k.name) ? "P1" : "P2",
+  unit: k.unit, dir: k.dir, bench: k.bench, v24: k.v24, v25: k.v25, prio: P1_KPIS.has(k.name) ? "P1" : P2_KPIS.has(k.name) ? "P2" : "P3",
 }));
 const KPI_CATS = ["All", "Workforce", "Attrition", "Recruitment", "Compensation & Payroll", "Performance", "Learning & Development", "Attendance & Leave", "Engagement"];
 
@@ -27,7 +32,7 @@ const STATS = [
   { num: "2,299", lbl: "Employee records (2021–2025)" },
   { num: fmtN(HR.hc || 1338), lbl: "Active on 31-Dec-2025" },
   { num: "18", lbl: "Tables in the model" },
-  { num: "67", lbl: "KPIs with DAX" },
+  { num: "10 → 67", lbl: "Must-know P1 KPIs → full library" },
   { num: f1(V25.ATTR || 13.5) + "%", lbl: "Attrition, CY2025" },
 ];
 
@@ -306,6 +311,49 @@ const DQ_RULES = [
   ["SCD overlap", "Only one current row per employee in Job_History / Salary_History", "SCD tables", "High"],
   ["Candidate funnel order", "Applied ≤ Screening ≤ Round1 ≤ Round2 ≤ HR ≤ Offer ≤ Response ≤ Joining", "Candidates", "Medium"],
 ];
+
+const TABLE_DATE = { "Dim_Date": "Date", "Employees": "HireDate, ExitDate", "Job_History": "EffectiveFrom / EffectiveTo", "Salary_History": "EffectiveFrom / EffectiveTo",
+  "Performance_Reviews": "ReviewDate (cycle: ReviewCycle)", "Exit_Details": "ResignationDate, LastWorkingDate", "Payroll_Monthly": "PayMonth", "Attendance_Monthly": "AttendanceMonth",
+  "Leave_Requests": "StartDate / EndDate", "Training_Records": "StartDate", "Engagement_Survey": "ResponseDate (SurveyYear)", "Job_Requisitions": "OpenDate, ClosedDate", "Candidates": "AppliedDate … ActualJoiningDate" };
+const TABLE_PURPOSE = {
+  "Dim_Date": ["Calendar for every time-based visual (with Indian FY and holidays).", "Facts store dates, but you need month names, fiscal years and working-day flags to slice them consistently."],
+  "Dim_Department": ["Department names, cost centres, heads and approved headcount.", "Keeps department attributes in one place; the approved headcount powers the vacancy-rate KPI."],
+  "Dim_Designation": ["Job titles, levels and FY2025-26 salary bands.", "Bands are what make compa-ratio possible: CTC alone can't tell you if someone is under- or over-paid."],
+  "Dim_Location": ["Office city, state and region.", "State drives Professional Tax rules and lets you compare offices."],
+  "Dim_LeaveType": ["Leave types with policy entitlement.", "Separates paid from unpaid (LOP) leave and documents the policy behind the numbers."],
+  "Dim_TrainingProgram": ["Training catalogue with category, cost and hours.", "Lets you analyse learning by category and compute cost per employee."],
+  "Employees": ["One row per person: the centre of the model.", "Every fact joins here; HireDate + ExitDate let you compute headcount on any date."],
+  "Job_History": ["Every promotion and transfer with effective dates.", "Employees only holds the CURRENT job. To know someone's level on a past date, or count promotions, you need history."],
+  "Salary_History": ["Every salary revision with the full CTC break-up.", "Salary changes over time. This table preserves each version, so you can do point-in-time compensation and hike analysis."],
+  "Performance_Reviews": ["Annual ratings, goals, potential and 9-box.", "Ratings change every cycle; linking them to exits and hikes shows whether pay and retention follow performance."],
+  "Exit_Details": ["Why, when and how people left.", "Employees.ExitDate says THAT someone left; this table says WHY (reason, type, regrettable), which is the heart of attrition analysis."],
+  "Payroll_Monthly": ["What each employee was actually paid each month.", "CTC is a promise; payroll is what was paid after LOP, bonus, arrears and statutory deductions. Finance reconciles to this."],
+  "Attendance_Monthly": ["Present days, WFH/WFO, LOP, late marks and overtime per month.", "Shows workload and absence patterns (overtime, absenteeism) that predict burnout and exits."],
+  "Leave_Requests": ["Every leave application and its status.", "Explains WHY someone was absent, and leave seasonality (Diwali, December)."],
+  "Training_Records": ["Who attended which program, with hours, score and cost.", "Needed to measure L&D investment and compliance completion."],
+  "Engagement_Survey": ["Annual survey answers, including eNPS.", "Captures how people feel, the early-warning signal that comes BEFORE a resignation."],
+  "Job_Requisitions": ["Every position the company tried to fill.", "Time to fill and open vacancies are measured on requisitions, not on employees."],
+  "Candidates": ["Every applicant and how far they got.", "The hiring funnel, offer acceptance and cost per hire come from candidates, including the many who were never hired."],
+};
+const INTERVIEW_TRAPS = [
+  ["Attrition = Exits ÷ Closing Headcount", "Attrition = Exits ÷ Average Headcount ((opening + closing) ÷ 2)"],
+  ["Headcount can be summed across months", "Headcount is semi-additive: take the month-end value or average it, never sum it"],
+  ["Resignation date = exit date", "Use LastWorkingDate for exits; resignation date + notice period ≠ the same month"],
+  ["Current salary answers historical salary questions", "Use Salary_History with EffectiveFrom ≤ date ≤ EffectiveTo"],
+  ["Active employees = EmploymentStatus 'Active'", "Serving-notice employees are still on the rolls: use the HireDate / ExitDate rule"],
+  ["A raw male vs female average is the pay gap", "Compare within the same job level, then weight by headcount"],
+  ["Join history tables straight to Employees", "Filter SCD tables to the record valid on the date, or rows fan out and totals inflate"],
+  ["Payroll should be zero before 2023 = missing data", "It's a coverage window: operational data starts Jan-2023"],
+];
+const PRESENTATION = [
+  ["01", "Business Problem", "30 sec", "HR data in silos; attrition seen too late; no single headcount."],
+  ["02", "Dataset", "30 sec", "18 tables, 2,299 employees, 2021–2025; what's in each area."],
+  ["03", "Data Model", "45 sec", "Star/galaxy schema, Employees at the centre, SCD history, inactive date relationships."],
+  ["04", "KPIs", "45 sec", "The 10 P1 KPIs and how attrition and headcount are defined."],
+  ["05", "Dashboard", "90 sec", "Walk through 2–3 pages live: workforce, attrition, hiring or pay."],
+  ["06", "Insights", "45 sec", "13.5% attrition; below-band pay, overtime and low eNPS predict exits."],
+  ["07", "Recommendations", "30 sec", "Targeted pay correction, overtime alerts, survey follow-ups, and how you'd measure them."],
+];
 /* ---------------- SQL LAB ---------------- */
 const SQL_BLOCKS = [
   { cat: "Setup", title: "1 · Create the core tables (MySQL)", desc: "Dimensions first, then Employees, then facts. The full DDL for all 18 tables follows the same pattern: copy the column list from the Data Dictionary.",
@@ -377,7 +425,7 @@ const PIVOTS = [
 function galleryPages() {
   const H = HR, v = V25;
   return [
-    { n: "01", t: "Workforce Overview", aud: "CEO · CHRO", keys: ["Headcount", "Hires", "Exits", "Female %"],
+    { n: "01", t: "Workforce Overview", q: "How has the size and shape of our workforce changed?", ins: "Headcount grew 6.1% in 2025 to 1,338; Engineering is 36% of the company.", iq: "Why can't monthly headcount simply be summed?", aud: "CEO · CHRO", keys: ["Headcount", "Hires", "Exits", "Female %"],
       desc: "Who works here today, where, at what level, and how the workforce changed over five years.",
       mock: { title: "Workforce Overview — CY2025", sub: "As of 31-Dec-2025, computed from Employees + Dim tables",
         kpis: [{ v: fmtN(v.HC), l: "Headcount (closing)" }, { v: fmtN(v.HIRES), l: "New hires" }, { v: fmtN(v.EXITS), l: "Exits" }, { v: f1(v.FEM) + "%", l: "Female %" }, { v: Number(v.TEN).toFixed(2) + " yrs", l: "Avg tenure" }, { v: Number(v.SPAN).toFixed(1), l: "Span of control" }],
@@ -385,7 +433,7 @@ function galleryPages() {
         bars: [{ title: "Headcount by department", data: H.hc_dept }, { title: "Headcount by location", data: H.hc_loc }, { title: "Headcount by job level", data: H.hc_level }, { title: "Age band", data: H.hc_age }] },
       build: { tableau: ["Headcount as a calculated field with a date parameter: IF [HireDate] <= [p_AsOf] AND (ISNULL([ExitDate]) OR [ExitDate] > [p_AsOf]) THEN 1 END", "Year-end headcount trend: a scaffold of month-end dates, or one calc per year", "Dept / location bars sorted descending"],
                powerbi: ["Headcount measure with VAR d = MAX(Dim_Date[Date]) and FILTER(ALL(Employees))", "Line chart: Dim_Date[YearMonth] on axis + Headcount measure (no relationship needed)", "Card visuals with conditional formatting vs prior year"] } },
-    { n: "02", t: "Attrition & Retention", aud: "CHRO · Department heads", keys: ["Attrition %", "Voluntary %", "Regrettable %", "Early attrition"],
+    { n: "02", t: "Attrition & Retention", q: "Who is leaving, from where, and why?", ins: "13.5% attrition; Customer Success & Support and Sales lose people fastest; pay is the #1 reason.", iq: "Why is the attrition denominator average headcount?", aud: "CHRO · Department heads", keys: ["Attrition %", "Voluntary %", "Regrettable %", "Early attrition"],
       desc: "How many people leave, from where, why, and which drivers predict it.",
       mock: { title: "Attrition & Retention — CY2025", sub: "Exits by last working day · average-headcount method",
         kpis: [{ v: f1(v.ATTR) + "%", l: "Attrition" }, { v: f1(v.VOL) + "%", l: "Voluntary attrition" }, { v: f1(v.REGRET) + "%", l: "Regrettable (of voluntary)" }, { v: f1(v.EARLY) + "%", l: "Exits < 1 yr tenure" }, { v: f1(v.RET) + "%", l: "Retention rate" }],
@@ -393,7 +441,7 @@ function galleryPages() {
         bars: [{ title: "Exits by month (LWD, 2025)", data: H.exits_by_month_2025 }, { title: "Voluntary attrition % by department", data: H.vol_attr_dept, suffix: "%" }, { title: "Top voluntary exit reasons", data: H.reasons_2025 }, { title: "Attrition % by year", data: (H.attr_trend || []).map(r => [r[0], r[1]]), suffix: "%" }] },
       build: { tableau: ["LOD for average headcount per department: {FIXED [Department]: ...}", "Reference line at company attrition % on the department bar", "Driver bars: Compa band / Overtime band as dimensions"],
                powerbi: ["Exits measure with USERELATIONSHIP(Exit_Details[LastWorkingDate], Dim_Date[Date])", "Attrition % = DIVIDE([Exits], [Avg HC])", "Decomposition tree on voluntary exits"] } },
-    { n: "03", t: "Talent Acquisition", aud: "TA Lead · Hiring managers", keys: ["Open reqs", "Time to fill", "Offer acceptance", "Cost per hire"],
+    { n: "03", t: "Talent Acquisition", q: "How fast and how efficiently do we hire?", ins: "45 days to fill; offer acceptance 86%; referrals are the cheapest channel but under-used.", iq: "What is the difference between time to fill and time to hire?", aud: "TA Lead · Hiring managers", keys: ["Open reqs", "Time to fill", "Offer acceptance", "Cost per hire"],
       desc: "How fast and how efficiently Proxima hires, and which channels are worth the money.",
       mock: { title: "Talent Acquisition — CY2025", sub: "Job_Requisitions + Candidates (campus excluded from time metrics)",
         kpis: [{ v: fmtN(v.OPENREQ), l: "Open reqs (31-Dec)" }, { v: f1(v.TTF) + " d", l: "Time to fill" }, { v: f1(v.TTH) + " d", l: "Time to hire" }, { v: f1(v.OAR) + "%", l: "Offer acceptance" }, { v: "₹" + fmtN(Math.round(v.CPH)), l: "Cost per hire" }],
@@ -401,7 +449,7 @@ function galleryPages() {
         bars: [{ title: "Recruitment funnel (applications in 2025)", data: H.funnel_2025 }, { title: "Time to fill by level (days)", data: H.ttf_level }, { title: "Cost per hire by source (₹)", data: H.cost_by_source }, { title: "Offer decline reasons", data: H.decline_reasons }] },
       build: { tableau: ["Funnel: stage as dimension, COUNT of non-null stage dates", "TTF = DATEDIFF('day', [OpenDate], [ClosedDate])", "Filter RequisitionType <> Campus Hiring"],
                powerbi: ["Funnel visual with one measure per stage", "Relationship Candidates → Job_Requisitions (Many:1)", "Slicer on Source, Department"] } },
-    { n: "04", t: "Compensation & Payroll", aud: "CFO · CHRO · Payroll", keys: ["Employer cost", "Avg CTC", "Compa-ratio", "Pay gap"],
+    { n: "04", t: "Compensation & Payroll", q: "What do people cost, and is pay competitive and fair?", ins: "₹199 Cr employer cost; median compa-ratio 0.98; June spikes from bonus + arrears.", iq: "How do you calculate compa-ratio from an SCD salary table?", aud: "CFO · CHRO · Payroll", keys: ["Employer cost", "Avg CTC", "Compa-ratio", "Pay gap"],
       desc: "What people cost, whether pay is competitive and fair, and how the appraisal budget was spent.",
       mock: { title: "Compensation & Payroll — CY2025", sub: "Payroll_Monthly + Salary_History + Dim_Designation bands",
         kpis: [{ v: "₹" + Number(v.PAYCOST).toFixed(1) + " Cr", l: "Employer cost" }, { v: "₹" + Number(v.AVGCTC).toFixed(1) + " L", l: "Avg CTC (active)" }, { v: Number(v.COMPA).toFixed(2), l: "Median compa-ratio" }, { v: f1(v.HIKE) + "%", l: "Avg hike incl. promotions" }, { v: f1(v.GPG) + "%", l: "Gender pay gap (level-adj.)" }],
@@ -409,7 +457,7 @@ function galleryPages() {
         bars: [{ title: "Employer cost by month (₹ Cr)", data: H.paycost_month_2025 }, { title: "Average CTC by level (₹ L)", data: H.ctc_level }, { title: "Annual hike % by rating (Apr-2025)", data: H.hike_by_rating, suffix: "%" }, { title: "Gender pay gap % by level", data: H.gap_level, suffix: "%" }] },
       build: { tableau: ["Use the SCD filter: EffectiveFrom <= date <= EffectiveTo", "Compa histogram with bins of 0.1", "Annotate June: bonus + arrears"],
                powerbi: ["Employer Cost = SUM(Payroll_Monthly[TotalEmployerCost]) on PayMonth", "Compa ratio in a matrix by Level × Department with conditional colours", "Format ₹ Cr via measure ÷ 1e7"] } },
-    { n: "05", t: "Performance & L&D", aud: "CHRO · L&D Manager", keys: ["Rating mix", "9-box", "Promotion %", "Training hrs"],
+    { n: "05", t: "Performance & L&D", q: "Do we differentiate performance and invest in skills?", ins: "39% rated 4–5; promotion rate 10.9%; ~25 training hours per employee.", iq: "How would you show a 9-box grid?", aud: "CHRO · L&D Manager", keys: ["Rating mix", "9-box", "Promotion %", "Training hrs"],
       desc: "Are we differentiating performance, promoting the right people and investing in skills?",
       mock: { title: "Performance & L&D — FY2024-25 cycle / CY2025", sub: "Performance_Reviews, Job_History, Training_Records",
         kpis: [{ v: f1(v.HIPO) + "%", l: "Rated 4–5" }, { v: f1(v.PROMO) + "%", l: "Promotion rate" }, { v: Number(v.YSP).toFixed(2) + " yrs", l: "Avg yrs since promotion" }, { v: f1(v.TRHRS) + " h", l: "Training hrs / employee" }, { v: f1(v.COMPL) + "%", l: "Compliance completion" }],
@@ -417,7 +465,7 @@ function galleryPages() {
         bars: [{ title: "9-box placement", data: H.ninebox }, { title: "Promotions by year", data: H.promos_year }, { title: "Training hours by category", data: H.trn_hours_cat }, { title: "Training record status", data: H.trn_status }] },
       build: { tableau: ["9-box: Performance band × PotentialRating highlight table", "Promotions from Job_History EventType", "Training hours on StartDate"],
                powerbi: ["Matrix visual for 9-box with counts", "Promotion % = promotions ÷ Avg HC", "Program slicer from Dim_TrainingProgram"] } },
-    { n: "06", t: "Engagement & Attendance", aud: "HR Business Partners", keys: ["eNPS", "Engagement index", "Absenteeism", "WFO %"],
+    { n: "06", t: "Engagement & Attendance", q: "How do people feel and how do they show up?", ins: "eNPS +16; detractors leave at ~1.7× the rate of promoters; WFO up to 62%.", iq: "How do you calculate eNPS?", aud: "HR Business Partners", keys: ["eNPS", "Engagement index", "Absenteeism", "WFO %"],
       desc: "How people feel, how they show up, and where workload is too high.",
       mock: { title: "Engagement & Attendance — CY2025", sub: "Engagement_Survey (Oct-2025), Attendance_Monthly, Leave_Requests",
         kpis: [{ v: "+" + f1(v.ENPS), l: "eNPS" }, { v: f1(v.EI) + "%", l: "Engagement index" }, { v: f1(v.STAY) + "%", l: "Intent to stay" }, { v: f1(v.ABSENT) + "%", l: "Absenteeism" }, { v: f1(v.WFO) + "%", l: "Work-from-office" }],
@@ -1054,6 +1102,7 @@ function refreshProgress() {
       <button class="btn-outline" style="margin-top:14px;padding:8px 14px;" data-goto="progress">See full progress →</button>`;
     hp.querySelector("[data-goto]").addEventListener("click", () => switchView("progress"));
   }
+  try { renderCertificate(); } catch (e) {}
   const po = document.getElementById("progress-overall");
   if (po) po.innerHTML = `<h4>Overall Progress</h4><div class="big">${overall}%</div><div class="sub">Average of the ten skill tracks below</div>`;
   const tl = document.getElementById("track-list");
@@ -1192,7 +1241,10 @@ function renderDataset() {
   const rows = HR.rows || {};
   document.getElementById("ds-grid").innerHTML = Object.keys(TABLE_TYPES).map(t => {
     const ty = TABLE_TYPES[t]; const cls = ty === "Dimension" ? "dim" : ty === "Employee master" ? "master" : "fact";
-    return `<div class="card ds-card ${cls}"><div class="k">${esc(ty)}</div><h4>${t}</h4><div class="rows">${Number(rows[t] || 0).toLocaleString("en-IN")}</div><p>${esc(TABLE_GRAIN[t])}</p></div>`;
+    const pu = TABLE_PURPOSE[t] || ["", ""];
+    return `<div class="card ds-card ${cls}"><div class="k">${esc(ty)}</div><h4>${t}</h4><div class="rows">${Number(rows[t] || 0).toLocaleString("en-IN")} rows</div>
+      <dl class="ds-meta"><dt>Grain</dt><dd>${esc(TABLE_GRAIN[t])}</dd><dt>PK</dt><dd><code>${TABLE_PK[t]}</code></dd><dt>FK</dt><dd>${esc(TABLE_FK[t] || "—")}</dd><dt>Date</dt><dd>${esc(TABLE_DATE[t] || "—")}</dd><dt>Purpose</dt><dd>${esc(pu[0])}</dd></dl>
+      <details class="ds-why"><summary>Why does this table exist?</summary><p>${esc(pu[1])}</p></details></div>`;
   }).join("");
   document.getElementById("story-table").innerHTML = `<thead><tr><th>When</th><th>Event</th><th>What happened</th><th>Where you'll see it</th></tr></thead>
     <tbody>${STORY.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>`;
@@ -1253,7 +1305,14 @@ function renderQuality() {
 /* ============================================================
    KPI Library
    ============================================================ */
-let kpiActiveCat = "All", kpiSearch = "", kpiStarredOnly = false;
+let kpiActiveCat = "All", kpiSearch = "", kpiStarredOnly = false, kpiTier = "All";
+function renderKpiTiers() {
+  ["P1", "P2", "P3"].forEach(p => { const e = document.getElementById("kr-" + p.toLowerCase()); if (e) e.textContent = KPIS.filter(k => k.prio === p).length + " KPIs"; });
+  const w = document.getElementById("kpi-tier-pills"); if (!w) return; w.innerHTML = "";
+  [["All", "All tiers"], ["P1", "P1 · Must know"], ["P2", "P2 · Important"], ["P3", "P3 · Advanced"]].forEach(([v, l]) => {
+    const b = el("button", "pill" + (v === kpiTier ? " active" : ""), l); b.addEventListener("click", () => { kpiTier = v; renderKpiTiers(); renderKpiGrid(); }); w.appendChild(b);
+  });
+}
 function renderKpiPills() {
   const wrap = document.getElementById("kpi-pills"); wrap.innerHTML = "";
   KPI_CATS.forEach(c => {
@@ -1266,14 +1325,14 @@ function renderKpiPills() {
 function renderKpiGrid() {
   const wrap = document.getElementById("kpi-grid"); wrap.innerHTML = "";
   const q = kpiSearch.trim().toLowerCase(); const bm = getBookmarks();
-  const list = KPIS.filter(k => (kpiActiveCat === "All" || k.cat === kpiActiveCat) && (!q || (k.name + k.q + k.desc + k.formula + k.table).toLowerCase().includes(q)) && (!kpiStarredOnly || bm.kpi[k.name]));
+  const list = KPIS.filter(k => (kpiTier === "All" || k.prio === kpiTier) && (kpiActiveCat === "All" || k.cat === kpiActiveCat) && (!q || (k.name + k.q + k.desc + k.formula + k.table).toLowerCase().includes(q)) && (!kpiStarredOnly || bm.kpi[k.name]));
   if (!list.length) { wrap.appendChild(el("div", "empty-state", kpiStarredOnly ? "No starred KPIs yet. Tap the ★ on any card to save it here." : "No KPIs match that search.")); return; }
   list.forEach(k => {
     const starred = !!bm.kpi[k.name];
     const c = el("div", "card kpi-card"); c.id = "kpi-" + slugify(k.name);
     c.innerHTML = `
       <div class="top"><h4>${esc(k.name)}</h4>
-        <div class="card-top-actions"><span class="tag ${k.prio === "P1" ? "p1" : "p2"}">${k.prio}</span>
+        <div class="card-top-actions"><span class="tag ${k.prio === "P1" ? "p1" : "p2"} tier-${k.prio}">${k.prio}</span>
           <button class="link-btn" title="Copy link to this KPI" data-link-kpi="${esc(k.name)}">🔗</button>
           <button class="star-btn ${starred ? "starred" : ""}" title="Star this KPI" data-star-kpi="${esc(k.name)}">${starred ? "★" : "☆"}</button></div></div>
       <p class="kpi-q">${esc(k.q)}</p>
@@ -1291,8 +1350,21 @@ function renderKpiGrid() {
 /* ============================================================
    SQL, Excel, Analysis
    ============================================================ */
-let sqlCat = "All";
+let sqlCat = "All", sqlPractice = false;
+function sqlHint(sql) {
+  const kw = (sql.match(/\b(SELECT|JOIN|LEFT JOIN|WHERE|GROUP BY|HAVING|ORDER BY|WITH|CASE|SUM|COUNT|AVG|DATEDIFF|ROW_NUMBER|COALESCE|CREATE TABLE|CREATE OR REPLACE VIEW|UNION ALL)\b/gi) || []).map(x => x.toUpperCase());
+  const tables = sql.match(/\b(Employees|Dim_\w+|Job_History|Salary_History|Performance_Reviews|Exit_Details|Payroll_Monthly|Attendance_Monthly|Leave_Requests|Training_Records|Engagement_Survey|Job_Requisitions|Candidates)\b/g) || [];
+  return `Tables: ${[...new Set(tables)].join(", ") || "—"} · Key SQL: ${[...new Set(kw)].slice(0, 8).join(", ")}`;
+}
 function sqlBlockHtml(b, idx, prefix) {
+  const exp = (b.sql.match(/--\s*[^\n]*\d[^\n]*/g) || []).slice(0, 3).map(x => x.replace(/^--\s*/, "")).join(" · ");
+  if (prefix === "s" && sqlPractice) {
+    return `<div class="card sql-block practice"><div class="hd"><div><h4>${esc(b.title)}</h4><p><strong>Your task:</strong> ${esc(b.desc)}</p></div></div>
+      ${exp ? `<div class="sql-expect">🎯 Expected result: ${esc(exp)}</div>` : ""}
+      <div class="sql-steps"><button class="btn-outline" data-hint="${idx}">💡 Show hint</button><button class="btn-blue" data-reveal="${idx}">🔓 Reveal solution</button></div>
+      <div class="hint-text" id="sqlh-${idx}" style="display:none;">${esc(sqlHint(b.sql))}</div>
+      <pre id="sqls-${idx}" style="display:none;">${esc(b.sql)}</pre></div>`;
+  }
   return `<div class="card sql-block"><div class="hd"><div><h4>${esc(b.title)}</h4><p>${esc(b.desc)}</p></div><button class="copy-btn" data-copy="${prefix}${idx}">Copy</button></div><pre>${esc(b.sql)}</pre></div>`;
 }
 function renderSql() {
@@ -1303,6 +1375,10 @@ function renderSql() {
   const wrap = document.getElementById("sql-list");
   wrap.innerHTML = SQL_BLOCKS.map((b, i) => (sqlCat === "All" || b.cat === sqlCat) ? sqlBlockHtml(b, i, "s") : "").join("");
   wrap.querySelectorAll("[data-copy]").forEach(btn => btn.addEventListener("click", () => copyText(SQL_BLOCKS[+btn.dataset.copy.slice(1)].sql, btn, "Copy")));
+  wrap.querySelectorAll("[data-hint]").forEach(b => b.addEventListener("click", () => { const x = document.getElementById("sqlh-" + b.dataset.hint); x.style.display = x.style.display === "none" ? "block" : "none"; }));
+  wrap.querySelectorAll("[data-reveal]").forEach(b => b.addEventListener("click", () => { document.getElementById("sqls-" + b.dataset.reveal).style.display = "block"; b.remove(); }));
+  const t = document.getElementById("sql-practice-toggle");
+  if (t && !t._bound) { t._bound = true; t.addEventListener("click", () => { sqlPractice = !sqlPractice; t.textContent = sqlPractice ? "Turn practice mode OFF" : "Turn practice mode ON"; renderSql(); }); }
 }
 function renderExcel() {
   document.getElementById("excel-table").innerHTML = `<thead><tr><th>Calculation</th><th>Excel formula pattern</th><th>Expected result</th><th>Status</th></tr></thead>
@@ -1344,11 +1420,11 @@ function renderGallery() {
   document.getElementById("gallery-grid").innerHTML = pages.map((p, i) => `
     <div class="card gallery-card">
       <div class="gtop"><div class="gnum">${p.n}</div><h4>${esc(p.t)}</h4><div class="gk">${p.keys.map(k => `<span>${esc(k)}</span>`).join("")}</div></div>
-      <div class="gbody"><p>${esc(p.desc)}</p><div class="gaud">Audience: ${esc(p.aud)}</div><button class="btn-blue" data-dash="${i}">View Dashboard →</button></div>
+      <div class="gbody"><div class="gq">❓ ${esc(p.q)}</div><p>${esc(p.desc)}</p><div class="gins">💡 ${esc(p.ins)}</div><div class="gaud">Audience: ${esc(p.aud)}</div><button class="btn-blue" data-dash="${i}">View Dashboard →</button></div>
     </div>`).join("");
   document.querySelectorAll("[data-dash]").forEach(b => b.addEventListener("click", () => {
     const p = pages[+b.dataset.dash];
-    openModal(renderDashMock(p.mock) + `<div class="build-notes">
+    openModal(`<div class="flow-strip"><div><span>Business question</span>${esc(p.q)}</div><div><span>KPIs</span>${esc(p.keys.join(" · "))}</div><div><span>Key insight</span>${esc(p.ins)}</div><div><span>Interview question</span>${esc(p.iq)}</div></div>` + renderDashMock(p.mock) + `<div class="build-notes">
       <div class="card"><h5>📈 Build it in Tableau</h5><ul>${p.build.tableau.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
       <div class="card"><h5>⚡ Build it in Power BI</h5><ul>${p.build.powerbi.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div></div>`);
   }));
@@ -1630,6 +1706,29 @@ function initBrandHome() {
   document.querySelectorAll("#brand-home, .brand-home-link").forEach(a => a.addEventListener("click", (e) => {
     e.preventDefault(); if (location.hash) history.replaceState(null, "", location.pathname); switchView("overview");
   }));
+}
+
+function renderTraps() {
+  const g = document.getElementById("trap-grid"); if (g) g.innerHTML = INTERVIEW_TRAPS.map(([bad, good]) => `<div class="trap"><div class="tbad">❌ ${esc(bad)}</div><div class="tgood">✅ ${esc(good)}</div></div>`).join("");
+  const p = document.getElementById("pres-list"); if (p) p.innerHTML = PRESENTATION.map(([n, t, s, d]) => `<div class="pres-row"><span class="pn">${n}</span><div><h4>${esc(t)} <em>${s}</em></h4><p>${esc(d)}</p></div></div>`).join("");
+}
+function renderCertificate() {
+  const box = document.getElementById("cert-box"); if (!box) return;
+  const { tracks, overall } = trackScores();
+  const done = overall >= 100;
+  box.innerHTML = `<h4>${done ? "🎉 HR Analytics Capstone Completed" : "🏅 Completion certificate"}</h4>
+    <div class="cert-ticks">${tracks.map(t => `<span class="${t.pct >= 100 ? "on" : ""}">${t.pct >= 100 ? "✓" : "○"} ${esc(t.name)}</span>`).join("")}</div>
+    ${done ? `<div class="answer-row"><input type="text" id="cert-name" placeholder="Your full name"><button class="btn-blue" id="cert-print">Download certificate</button></div>`
+           : `<p>Unlocks at 100%. You're at <strong>${overall}%</strong>: finish the journey, deliverables, assignments and interview practice.</p>`}`;
+  const b = document.getElementById("cert-print");
+  if (b) b.addEventListener("click", () => {
+    const nm = (document.getElementById("cert-name").value || "").trim(); if (!nm) { chatToastMini("Type your name first."); return; }
+    document.getElementById("print-sheet").innerHTML = `<div class="cert-print"><img src="assets/proxima-icon.png" alt="" style="width:70px;"><h1>Certificate of Completion</h1><p>This certifies that</p><h2>${esc(nm)}</h2>
+      <p>has completed the <strong>Proxima HR Analytics Capstone</strong>: data model, SQL, Excel, Tableau, Power BI, KPI implementation, QA reconciliation, business analysis and interview preparation.</p>
+      <p style="margin-top:30px;">Mahendra Singh · CrackAnalytics &nbsp;|&nbsp; ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
+      <p style="font-size:10px;color:#777;margin-top:20px;">Self-tracked completion on the Proxima HR Analytics learning hub. Proxima Business Services is a fictional case-study company.</p></div>`;
+    setTimeout(() => window.print(), 80);
+  });
 }
 /* ============================================================
    Navigation
@@ -1971,8 +2070,8 @@ document.addEventListener("DOMContentLoaded", () => {
     renderDocuments, renderFlow, renderTimeline, renderProblem, renderRules, renderDataset, renderModel, renderDataDictionary, renderQuality,
     renderKpiPills, renderKpiGrid, renderSql, renderExcel, renderAnalysis, renderGallery, renderQA, renderAssignments, renderLab,
     renderQaTabs, renderQaList, renderPitch, renderCareer, renderGlossary, renderTips, renderLearningLinks, renderProgressPage,
-    initNav, initMobileToggle, initSearch, initSocial, initVisitorCounter, initChatWidget, initThemeToggle, updateStreak,
-    initQuiz, initStarredToggles, initCmdk, initCheatSheet, initModal, renderSamples, renderQaRefs, initBrandHome, refreshProgress, renderContinueBanner, handleDeepLink,
+    initNav, initMobileToggle, initSearch, initSocial, initChatWidget, initThemeToggle, updateStreak,
+    initQuiz, initStarredToggles, initCmdk, initCheatSheet, initModal, renderSamples, renderQaRefs, initBrandHome, renderKpiTiers, renderTraps, refreshProgress, renderContinueBanner, handleDeepLink,
   ];
   steps.forEach(fn => { try { fn(); } catch (e) { console.error("Boot step failed:", fn.name || "(anonymous)", e); } });
   window.addEventListener("hashchange", handleDeepLink);
