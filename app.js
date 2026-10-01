@@ -824,18 +824,126 @@ const SAMPLE_IMAGE_DASHBOARDS = [
     proxima: "Page 03 Talent Acquisition. Use Candidates stage dates for the funnel strip." },
 ];
 const VIDI_DASHBOARDS = [
-  ["HR Dashboard for CEO", "Executive summary: headcount, hires, terminations, workforce cost, diversity, location/department split", "What is the current state of our workforce?", "CEO, board", "01 Workforce Overview"],
-  ["Employee Headcount Dashboard", "Headcount by role, department, gender, age, education, tenure; average monthly income by role", "How is headcount distributed and what does it cost?", "Senior management", "01 Workforce Overview"],
-  ["Recruitment Dashboard (vacancies)", "Filled vs unfilled positions by job role and location", "Which roles must be filled, and where is the operational risk?", "Recruiters", "03 Talent Acquisition"],
-  ["Recruitment Analytics Dashboard", "Applications, cost and offers by source; cost per application, interview and offer", "Which recruitment channels are most cost-efficient?", "TA lead, finance", "03 Talent Acquisition"],
-  ["Payroll & Compensation Dashboard", "Payroll cost split into wages, pension, insurance; cost by department and project", "What is our full payroll cost and where does it go?", "CFO, payroll", "04 Compensation & Payroll"],
-  ["Payroll per Project Dashboard", "Daily payroll cost by project, billable vs non-billable hours, hours by employee and role", "How do people costs map to clients and projects?", "Delivery heads, finance", "04 Compensation & Payroll"],
-  ["HR Attrition Dashboard (main)", "New joiners, resignations, attrition %, net headcount change by unit, overtime cost per person", "Which units are hit by attrition, and what does it cost?", "CHRO, unit heads", "02 Attrition & Retention"],
-  ["Attrition Dashboard (resignations)", "Resignations by department, job role and reason; attrition % by month", "Why are people leaving and where should we focus?", "HRBPs", "02 Attrition & Retention"],
-  ["Overtime Analysis Dashboard", "Overtime hours and cost by location and unit, monthly trend", "Is attrition driving up overtime spend?", "Operations, HR", "06 Engagement & Attendance"],
-  ["HR Diversity Dashboard (gender)", "Age and gender distribution and representation by age group", "Are there hidden biases in hiring or promotion?", "DEI lead", "01 Workforce / 05 Performance"],
-  ["DEI Dashboard (identity)", "Employee counts by self-identified demographic groups (aggregated)", "Do our hiring practices show unintended preferences?", "DEI lead (restricted access)", "Not in this dataset: needs consent-based, aggregated data"],
-  ["Tableau HR Dashboard (headcount)", "Month start/end headcount, joiners, leavers, demographics, department headcount, 12-month hiring trend, tenure & age by department", "What is our headcount status and staffing trend?", "Workforce planning", "01 Workforce Overview"],
+  { name: "HR Dashboard for the CEO (Executive Summary)", tool: "Power BI", tag: "One page that tells leadership the state of the workforce",
+    context: "Built for C-suite and board reporting: a single executive summary that replaces a monthly pack of HR spreadsheets.",
+    what: "Headline figures for headcount, hires and terminations, total workforce cost, diversity (gender, age band, and other demographics where legally collected) and a breakdown by location and department.",
+    question: "What is the current state of our workforce, and is anything moving in the wrong direction?",
+    who: "CEO, CFO, CHRO, board members",
+    kpis: ["Headcount (closing)", "New hires", "Terminations / exits", "Attrition %", "Total workforce cost", "Female %", "Average age & tenure"],
+    visuals: ["KPI cards with vs-last-period arrows", "Headcount by location (map or bar)", "Headcount by department", "Gender and age-band donuts", "Monthly hires vs exits trend"],
+    filters: "Date / fiscal year, location, department",
+    build: ["Headcount, Hires, Exits and Attrition % measures from the KPI Library", "Workforce cost = SUM(Payroll_Monthly[TotalEmployerCost])", "Location from Dim_Location, department from Dim_Department", "Keep it to one page: max 6 cards + 4 visuals"],
+    proxima: "Closing headcount 1,338, 252 hires, 175 exits, 13.5% attrition, ₹199.25 Cr employer cost, 35.8% women (CY2025).", page: "01 Workforce Overview" },
+  { name: "Employee Headcount Dashboard", tool: "Power BI", tag: "Where are our people, and what do they cost?",
+    context: "Used by a mid-market organisation to report human-capital structure and cost to senior management.",
+    what: "How headcount is distributed across roles, departments and demographics (gender, age, education), tenure analysis, and average monthly income by job role.",
+    question: "How is our headcount distributed, and what are our human-capital costs by role?",
+    who: "Senior management, HR heads, finance business partners",
+    kpis: ["Headcount by department / role / level", "Average tenure", "Average monthly income by role", "Education mix", "Age-band mix"],
+    visuals: ["Stacked bars: department × level", "Tenure-band histogram", "Bar: average monthly income by job role", "Donuts for gender and education"],
+    filters: "Department, job role, gender, education, location",
+    build: ["Employees joined to Dim_Designation (JobLevel, title) and Dim_Department", "Average monthly fixed gross from Payroll_Monthly (Basic + HRA + Special)", "Tenure band as a calculated column", "Education from Employees[EducationLevel] / [Qualification]"],
+    proxima: "Engineering has 481 of 1,338 people; average CTC ranges from ₹3.9 L (L1) to ₹50 L (L6).", page: "01 Workforce Overview" },
+  { name: "Recruitment Dashboard (Vacancies & Operational Risk)", tool: "Power BI", tag: "Which roles are still open, and where does that hurt?",
+    context: "Built for a holiday provider that hires seasonally: recruiters needed to see open roles before the season started.",
+    what: "Filled vs unfilled positions by job role, the locations (resorts) affected by vacancies, and vacancy tracking over time.",
+    question: "Which roles must be filled, and which locations are at operational risk if they aren't?",
+    who: "Recruiters, talent acquisition lead, operations managers",
+    kpis: ["Open positions", "Filled positions", "% vacancies filled", "Vacancies by location", "Ageing of open requisitions"],
+    visuals: ["Bar: filled vs unfilled by role", "Location table/map with open-role counts", "Vacancy trend line", "Ageing buckets (0–30, 31–60, 60+ days)"],
+    filters: "Location, job role, department, requisition status",
+    build: ["Job_Requisitions[Status] for Open / On Hold / Filled", "Ageing = DATEDIFF(OpenDate, as-of date)", "Location from Job_Requisitions[LocationID] (inactive relationship → USERELATIONSHIP)", "Compare with Dim_Department[ApprovedHeadcount_FY2025_26] for vacancy rate"],
+    proxima: "55 requisitions open or on hold on 31-Dec-2025; vacancy rate 7.0% against the approved headcount plan.", page: "03 Talent Acquisition" },
+  { name: "Recruitment Analytics Dashboard (Channel Cost)", tool: "Power BI", tag: "Which hiring channel gives the best value?",
+    context: "Built to optimise recruitment budget allocation across job boards, agencies and referrals.",
+    what: "Applications, costs and job offers by recruitment source, with cost per application, cost per interview and cost per offer for each channel.",
+    question: "Which recruitment channels are the most cost-efficient, and where should next year's budget go?",
+    who: "Talent acquisition lead, HR head, finance",
+    kpis: ["Applications by source", "Cost per application", "Cost per interview", "Cost per offer / per hire", "Offer acceptance by source"],
+    visuals: ["Funnel by source", "Bar: cost per hire by source", "Scatter: volume vs cost per hire", "Table: source × funnel stage"],
+    filters: "Date, source, department, job level",
+    build: ["Candidates[Source] + stage dates (ScreeningDate, Round1Date…, OfferDate)", "Cost per hire = SUM(SourcingCostINR) ÷ joined candidates", "Offer acceptance by source from ApplicationStatus", "Exclude Campus Placement from time metrics"],
+    proxima: "Consultant hires cost ~₹1.48 L each vs ~₹34 K for referrals and ₹9 K for Naukri, yet referrals were only 17.9% of 2025 hires.", page: "03 Talent Acquisition" },
+  { name: "Payroll & Compensation Dashboard", tool: "Power BI", tag: "What do our people really cost, and where?",
+    context: "Built for a security-services company that needed the full cost of payroll, not just salaries.",
+    what: "Payroll cost broken into wages, pension contributions and employee insurance, allocated to departments and projects.",
+    question: "What is our full payroll cost, and how does it split across departments?",
+    who: "CFO, payroll team, CHRO",
+    kpis: ["Total employer cost", "Gross pay", "Employer statutory cost (PF, ESI, gratuity)", "Cost per employee", "Bonus / variable share"],
+    visuals: ["Monthly cost trend (stacked by component)", "Bar: cost by department", "Waterfall: gross → deductions → net pay", "Table: department × component"],
+    filters: "Pay month / FY, department, location, level",
+    build: ["Payroll_Monthly: Basic, HRA, SpecialAllowance, Bonus_Incentive, Arrears, EPF/ESI employer, GratuityProvision", "Relate PayMonth to Dim_Date", "Department via Employees (or Job_History valid on PayMonth for accuracy)", "Show ₹ Cr with a ÷1e7 measure"],
+    proxima: "₹199.25 Cr employer cost in 2025; June spikes to ₹31.4 Cr because of annual bonus + increment arrears.", page: "04 Compensation & Payroll" },
+  { name: "Payroll per Project Dashboard", tool: "Power BI", tag: "Are people costs recovered from clients?",
+    context: "Built to see how payroll cost maps onto client projects, and how much time is non-billable.",
+    what: "Daily payroll cost by project, billable vs non-billable hours (e.g. training), and hours worked by employee and job role.",
+    question: "How do payroll costs allocate to clients and projects, and how much time is billable?",
+    who: "Delivery heads, project managers, finance",
+    kpis: ["Payroll cost per project", "Billable hours %", "Non-billable (training) hours", "Cost per billable hour", "Hours by role"],
+    visuals: ["Bar: cost by project", "Stacked bar: billable vs non-billable", "Trend of daily cost", "Matrix: employee × project hours"],
+    filters: "Project, client, date, role",
+    build: ["Proxima has no project/timesheet table, so this is a stretch exercise", "Proxy: training hours from Training_Records as non-billable time", "Present days × 8 h from Attendance_Monthly as available hours", "Discuss in interviews which table you'd need (Timesheets: EmployeeID, ProjectID, Date, Hours)"],
+    proxima: "24.8 training hours per employee in 2025, a real non-billable cost you can quantify.", page: "Stretch idea (needs a timesheet table)" },
+  { name: "HR Attrition Dashboard (Main Page)", tool: "Power BI", tag: "Who is leaving, and what does it cost us?",
+    context: "Built to monitor workforce stability across business units and connect attrition to its cost.",
+    what: "New joiners, resignations, attrition %, net headcount change by business unit, and overtime cost per person (the cost of covering for leavers).",
+    question: "Which departments are hit by attrition, and what is the impact on cost and capacity?",
+    who: "CHRO, department heads, HR business partners",
+    kpis: ["New joiners", "Resignations", "Attrition % (exits ÷ average headcount)", "Net headcount change", "Overtime hours / cost per person"],
+    visuals: ["KPI cards", "Bar: attrition % by department with a company reference line", "Line: joiners vs leavers by month", "Bar: overtime per person by unit"],
+    filters: "Date, department, location, level, gender",
+    build: ["Exits measure with USERELATIONSHIP(Exit_Details[LastWorkingDate], Dim_Date[Date])", "Average headcount = (opening + closing) ÷ 2", "Overtime from Attendance_Monthly[OvertimeHours]", "Net change = hires − exits"],
+    proxima: "Customer Success & Support has 17.3% voluntary attrition and the highest overtime (8.6 h per person per month).", page: "02 Attrition & Retention" },
+  { name: "Attrition Dashboard (Resignations Page)", tool: "Power BI", tag: "Why are people leaving?",
+    context: "The drill-down page behind the attrition summary, used to set retention priorities.",
+    what: "Resignations by department, job role and reason, plus attrition % by month.",
+    question: "Why are employees leaving, and where should HR focus retention and recruitment effort?",
+    who: "HR business partners, department heads",
+    kpis: ["Voluntary exits", "Exit reasons (count & %)", "Regrettable attrition %", "Monthly attrition %", "Early attrition (< 1 year)"],
+    visuals: ["Bar: exit reasons", "Matrix: department × reason", "Line: monthly attrition %", "Bar: exits by tenure band"],
+    filters: "Department, job role, exit type, tenure band",
+    build: ["Exit_Details[ExitReason] and [ExitReasonCategory]", "Filter ExitType = Voluntary and ExitStatus = Exited", "Tenure at exit = LastWorkingDate − Employees[HireDate]", "Regrettable = RegrettableAttrition = 'Yes'"],
+    proxima: "Better Compensation is the #1 voluntary reason (25.3%); 27.3% of voluntary leavers were rated 4–5.", page: "02 Attrition & Retention" },
+  { name: "Overtime Analysis Dashboard", tool: "Power BI", tag: "Is understaffing driving overtime?",
+    context: "Built to check whether staffing actions after attrition were actually reducing overtime spend.",
+    what: "Overtime hours and cost by location and business unit, with monthly overtime trends.",
+    question: "How does attrition affect overtime spending, and are our staffing measures working?",
+    who: "Operations managers, HR, finance",
+    kpis: ["Overtime hours per employee per month", "Overtime cost", "Employees above an overtime threshold", "Overtime vs attrition by unit"],
+    visuals: ["Heatmap: department × month overtime", "Bar: overtime by location", "Trend line", "Scatter: overtime vs attrition % by department"],
+    filters: "Month, department, location, shift type",
+    build: ["Attendance_Monthly[OvertimeHours] by AttendanceMonth", "Shift from Employees[ShiftType]", "Flag employees > 12 h/month for 3 months", "Correlate with 2025 exits by overtime band"],
+    proxima: "Employees averaging 15+ overtime hours a month left at 16.7% vs 10.1% for 0–3 hours.", page: "06 Engagement & Attendance" },
+  { name: "HR Diversity Dashboard (Gender & Age)", tool: "Power BI", tag: "Are there hidden biases in hiring or promotion?",
+    context: "Built for a recruitment agency that needed to demonstrate fair hiring and spot discrimination risks.",
+    what: "Age and gender distribution, and representation patterns across age groups and levels.",
+    question: "Are there hidden biases in hiring or promotion, and where does representation drop off?",
+    who: "DEI lead, CHRO, compliance",
+    kpis: ["Female %", "Women in leadership (L5+) %", "Gender mix of hires vs applicants", "Promotion rate by gender", "Level-adjusted gender pay gap"],
+    visuals: ["Population pyramid (age band × gender)", "Bar: female % by level", "Funnel by gender (applied → hired)", "Bar: pay gap % by level"],
+    filters: "Department, level, location, year",
+    build: ["Employees[Gender], [DateOfBirth] → age band", "Candidates[Gender] for the hiring funnel", "Job_History promotions by gender", "Pay gap: compare CTC within each JobLevel, then weight"],
+    proxima: "Women are 35.8% of the workforce but 33.2% of L5+ leadership; level-adjusted pay gap 2.9%.", page: "01 Workforce / 05 Performance" },
+  { name: "DEI Dashboard (Identity & Inclusion)", tool: "Power BI", tag: "Do our practices favour some groups unintentionally?",
+    context: "Built to look for unintended hiring preferences using voluntary, self-reported demographic data.",
+    what: "Employee counts by self-identified demographic groups, aggregated, to check representation at each stage.",
+    question: "Do our hiring and promotion practices show unintended preferences?",
+    who: "DEI lead (restricted access), CHRO",
+    kpis: ["Representation by group and level", "Hiring rate by group", "Promotion and exit rate by group", "Survey inclusion score by group"],
+    visuals: ["Aggregated bars only (no individual-level views)", "Stage funnel by group", "Trend of representation"],
+    filters: "Level, department, year (with a minimum group size, e.g. n ≥ 5)",
+    build: ["Proxima doesn't collect sensitive identity data, which is correct practice unless employees opt in", "Use only consented, aggregated data; hide groups smaller than 5", "Restrict with row-level security", "Interview point: explain why you would NOT build this without consent"],
+    proxima: "Not in this dataset by design. Discuss the privacy and consent rules instead.", page: "Discussion only" },
+  { name: "Tableau HR Dashboard (Headcount View)", tool: "Tableau", tag: "A 12-month view of headcount, joiners and leavers",
+    context: "A Tableau workforce-planning dashboard showing monthly movement and departmental staffing trends.",
+    what: "Month-start and month-end headcount, resignations, new joiners, demographic breakdown (age, gender, nationality), department headcount, 12-month hiring trend, and average tenure and age by department.",
+    question: "What is our headcount status, diversity profile and departmental staffing trend?",
+    who: "Workforce planning, HR operations, department heads",
+    kpis: ["Opening & closing headcount", "Joiners", "Leavers", "Average tenure by department", "Average age by department"],
+    visuals: ["Headcount bridge (opening + joiners − leavers = closing)", "12-month hiring trend", "Bar: headcount by department", "Demographic donuts"],
+    filters: "Month, department, gender, location",
+    build: ["Tableau: month-end date scaffold joined to Employees on HireDate ≤ month-end < ExitDate", "Joiners/leavers by month from HireDate / ExitDate", "Bridge chart with a waterfall (Gantt bar) mark", "Average tenure/age as LOD per department"],
+    proxima: "2025 bridge: 1,261 opening + 252 joiners − 175 leavers = 1,338 closing.", page: "01 Workforce Overview" },
 ];
 /* ============================================================
    Helpers
@@ -1483,9 +1591,36 @@ function renderSamples() {
       </div>`).join("");
     g.querySelectorAll("[data-zoom]").forEach(im => im.addEventListener("click", () => openModal(`<img class="zoom-img" src="${im.src}" alt="${esc(im.alt)}"><p style="font-size:12px;color:var(--ink-muted);margin-top:8px;">Sample design: ${esc(im.alt)}. Shown for learning; values are not from the Proxima dataset.</p>`)));
   }
-  const t = document.getElementById("vidi-table");
-  if (t) t.innerHTML = `<thead><tr><th>#</th><th>Dashboard</th><th>What it shows</th><th>Question it answers</th><th>Who uses it</th><th>Build it on Proxima page</th></tr></thead>
-    <tbody>${VIDI_DASHBOARDS.map((r, i) => `<tr><td>${i + 1}</td><td><strong>${esc(r[0])}</strong></td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td></tr>`).join("")}</tbody>`;
+  const w = document.getElementById("vidi-cards");
+  if (w) {
+    const li = (arr) => `<ul>${arr.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`;
+    w.innerHTML = VIDI_DASHBOARDS.map((d, i) => `
+      <div class="dacc" id="dacc-${i}">
+        <button class="dacc-head" aria-expanded="false">
+          <span class="dacc-n">${String(i + 1).padStart(2, "0")}</span>
+          <span class="dacc-t"><strong>${esc(d.name)}</strong><span>${esc(d.tag)}</span></span>
+          <span class="dacc-tool">${esc(d.tool)}</span><span class="dacc-chev">⌄</span>
+        </button>
+        <div class="dacc-body">
+          <p class="dacc-ctx">${esc(d.context)}</p>
+          <div class="dacc-grid">
+            <div><h5>📋 What it shows</h5><p>${esc(d.what)}</p></div>
+            <div><h5>❓ Business question it answers</h5><p>${esc(d.question)}</p></div>
+            <div><h5>👥 Who uses it</h5><p>${esc(d.who)}</p></div>
+            <div><h5>🎛️ Filters / slicers</h5><p>${esc(d.filters)}</p></div>
+            <div><h5>📊 Key KPIs</h5>${li(d.kpis)}</div>
+            <div><h5>📈 Visuals</h5>${li(d.visuals)}</div>
+          </div>
+          <div class="dacc-build"><h5>🛠️ Build it with the Proxima data</h5>${li(d.build)}</div>
+          <div class="dacc-foot"><span class="dacc-insight">💡 Proxima example: ${esc(d.proxima)}</span><span class="dacc-page">Gallery page: ${esc(d.page)}</span></div>
+        </div>
+      </div>`).join("");
+    const setOpen = (card, open) => { card.classList.toggle("open", open); card.querySelector(".dacc-head").setAttribute("aria-expanded", open); };
+    w.querySelectorAll(".dacc").forEach(c => c.querySelector(".dacc-head").addEventListener("click", () => setOpen(c, !c.classList.contains("open"))));
+    const oa = document.getElementById("acc-open-all"), ca = document.getElementById("acc-close-all");
+    if (oa) oa.addEventListener("click", () => w.querySelectorAll(".dacc").forEach(c => setOpen(c, true)));
+    if (ca) ca.addEventListener("click", () => w.querySelectorAll(".dacc").forEach(c => setOpen(c, false)));
+  }
 }
 function renderQaRefs() {
   const w = document.getElementById("qa-refs"); if (!w) return;
@@ -1796,7 +1931,7 @@ function initCmdk() {
   const hint = document.getElementById("cmdk-fab-hint"), ov = document.getElementById("cmdk-overlay"), inp = document.getElementById("cmdk-input");
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   const kl = document.getElementById("cmdk-kbd-label"); if (kl && isMac) kl.textContent = "⌘ K";
-  hint.addEventListener("click", openCmdk);
+  if (hint) hint.addEventListener("click", openCmdk);
   ov.addEventListener("click", (e) => { if (e.target === ov) closeCmdk(); });
   document.addEventListener("keydown", (e) => {
     const mod = isMac ? e.metaKey : e.ctrlKey;

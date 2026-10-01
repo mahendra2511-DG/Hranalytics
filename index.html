@@ -599,16 +599,11 @@
     <div class="sample-grid" id="sample-grid"></div>
     <div class="section-head mt-40">
       <div class="eyebrow">Which dashboard does what</div>
-      <h2>12 common HR dashboards: purpose, audience and the Proxima page to build</h2>
-      <p>Summarised from <a href="https://vidi-corp.com/power-bi-hr-dashboard-examples/" target="_blank" rel="noopener">Vidi Corp's Power BI &amp; Tableau HR dashboard examples ↗</a>. Open the link to see screenshots of each one.</p>
+      <h2>12 common HR dashboards: click a name to see everything it does</h2>
+      <p>Each card explains the purpose, audience, KPIs, visuals and filters of a real-world HR dashboard type, plus exactly how to build the same thing with the Proxima tables.</p>
     </div>
-    <div class="card table-scroll"><table class="dtable" id="vidi-table"></table></div>
-    <div class="section-head mt-40">
-      <div class="eyebrow">Design inspiration</div>
-      <h2>Concept design</h2>
-      <p>The look and feel to aim for. Values in this concept image are illustrative only, so always use the dataset's numbers.</p>
-    </div>
-    <div class="card" style="padding:0;overflow:hidden;max-width:820px;"><img src="assets/hero-dashboard.webp" alt="Proxima HR dashboard concept design" style="width:100%;display:block;"></div>
+    <div class="dash-acc-tools"><button class="btn-outline" id="acc-open-all">Expand all</button><button class="btn-outline" id="acc-close-all">Collapse all</button></div>
+    <div id="vidi-cards"></div>
   </div>
 </section>
 
@@ -878,7 +873,6 @@
 </div>
 
 <!-- ===================== COMMAND PALETTE ===================== -->
-<button class="cmdk-fab-hint" id="cmdk-fab-hint">🔎 Quick search <kbd id="cmdk-kbd-label">Ctrl K</kbd></button>
 <div class="cmdk-overlay" id="cmdk-overlay">
   <div class="cmdk-box">
     <div class="cmdk-input-row"><span>🔎</span><input type="text" id="cmdk-input" placeholder="Jump to a KPI, question, glossary term or page…" autocomplete="off"><span class="cmdk-hint">Esc</span></div>
