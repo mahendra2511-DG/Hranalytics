@@ -722,6 +722,122 @@ const CHAT_POPULAR = ["How is attrition calculated?", "What is compa-ratio?", "H
 const QUICK_REPLY_POOL = ["How is attrition calculated?", "What is compa-ratio?", "Headcount on a date in SQL", "Why are relationships inactive?", "What is SCD Type 2?", "What is eNPS?",
   "Serving notice vs exited?", "Why the June payroll spike?", "Time to fill vs time to hire?", "Give me a scenario question"];
 /* ============================================================
+   Web-sourced HR analytics interview questions + industry
+   sample dashboards. Answers are written for students; every
+   question links back to the page it was sourced from.
+   ============================================================ */
+const SRC = {
+  dd: ["DigitalDefynd: Top HR & People Analytics Interview Questions", "https://digitaldefynd.com/IQ/top-hr-people-analytics-interview-questions-and-answers/"],
+  sjHR: ["startup.jobs: HR Data Analyst Interview Questions", "https://startup.jobs/interview-questions/hr-data-analyst"],
+  sjPA: ["startup.jobs: People Analyst Interview Questions", "https://startup.jobs/interview-questions/people-analyst"],
+  df: ["Dataford: People Data Analyst Interview Guide", "https://dataford.io/interview-guides/people/data-analyst"],
+  vs: ["Vskills: HR Analytics Interview Questions", "https://www.vskills.in/interview-questions/hr-analytics-interview-questions"],
+  ib: ["Interview Baba: HR Analyst Interview Questions", "https://interviewbaba.com/hr-analyst-interview-questions/"],
+  cv: ["CVOwl: HR Analyst Interview Questions", "https://www.cvowl.com/blog/hr-analyst-interview-questions-answers"],
+  hu: ["HR University: HRIS Analyst Interview Questions", "https://hr.university/career/hr-analyst/hris-analyst-interview-questions/"],
+  hq: ["HireQuotient: Top HR Analyst Interview Questions", "https://www.hirequotient.com/blog/top-hr-analyst-interview-questions"],
+};
+const WEB_QA_CATS = ["HR Analytics Concepts", "HR Metrics & Formulas", "Recruitment & Workforce Planning", "Engagement, Performance & DEI", "HRIS, Data Quality & Privacy", "Behavioral (HR Analyst)"];
+const WEB_QA = [
+  // ---------- HR Analytics Concepts ----------
+  { cat: "HR Analytics Concepts", s: "vs", q: "What is HR analytics, and why does a company need it?", a: "HR (people) analytics is the use of employee data (HRMS, payroll, recruitment, performance, surveys) to answer business questions about the workforce. It moves HR from opinion to evidence: which teams lose people and why, whether pay is competitive, which hiring channels work. In this project it's exactly what Proxima lacked: one trusted view of headcount, attrition and their drivers.", signal: "Opening definition question. Answer with a business outcome, not a textbook line." },
+  { cat: "HR Analytics Concepts", s: "dd", q: "What is the difference between HR reporting and people analytics?", a: "Reporting answers <em>what happened</em> (\"175 people left in 2025\"). Analytics answers <em>why it happened and what to do</em> (\"employees below 0.85 compa-ratio left at almost twice the rate, so a targeted pay correction is the lever\"). A dashboard of counts is reporting; linking exits to pay, workload and engagement is analytics.", signal: "Tests whether you can go beyond building charts." },
+  { cat: "HR Analytics Concepts", s: "dd", q: "Explain descriptive, predictive and prescriptive analytics with HR examples.", a: "Descriptive: what happened, e.g. attrition by department last year. Predictive: what is likely, e.g. which employees are at higher risk of leaving in the next 6 months based on compa-ratio, overtime and eNPS. Prescriptive: what should we do, e.g. which retention action (pay correction, workload rebalancing) gives the biggest reduction in exits per rupee.", signal: "Classic framework question. Give one HR example for each level." },
+  { cat: "HR Analytics Concepts", s: "vs", q: "HR metrics vs HR analytics: what's the difference?", a: "A metric is a single measurement (attrition rate 13.5%, time to fill 45 days). Analytics combines metrics and data to explain and predict (attrition is highest where pay is below band and overtime is high). Metrics are the inputs; analytics is the reasoning on top of them.", signal: "Checks precision of vocabulary." },
+  { cat: "HR Analytics Concepts", s: "vs", q: "What are the key data sources for HR analytics?", a: "HRIS/HRMS (employee master, job history), payroll (CTC, deductions), attendance & leave systems, ATS (requisitions, candidates), performance management (ratings, goals), LMS (training), engagement surveys, and exit interviews. This project has all of them as 18 tables, connected by EmployeeID.", signal: "Shows you know where HR data actually lives." },
+  { cat: "HR Analytics Concepts", s: "dd", q: "What is a people analytics maturity model?", a: "A ladder of capability: (1) operational reporting (headcount lists), (2) advanced reporting (dashboards, benchmarks), (3) analytics (drivers, segmentation, correlation), (4) predictive (attrition-risk, workforce forecasting), (5) prescriptive (recommended actions, scenario planning). It helps a company set realistic expectations; most Indian mid-size companies sit at level 2.", signal: "Senior-leaning concept; shows strategic awareness." },
+  { cat: "HR Analytics Concepts", s: "dd", q: "How do you align HR analytics with business strategy?", a: "Start from the business goal (e.g. grow revenue 20% without margin loss), translate it into people questions (can we hire 250 engineers in time? are we losing top performers?), pick 3–5 KPIs that answer them, and review them with leadership on a fixed cadence. Analytics that doesn't map to a business decision becomes a vanity dashboard.", signal: "Tests business acumen." },
+  { cat: "HR Analytics Concepts", s: "dd", q: "What are the risks of relying too heavily on HR analytics?", a: "Biased historical data (models can repeat past unfair decisions), privacy violations, over-precision with small samples, and 'decision by dashboard' where context from managers is ignored. Mitigate with fairness checks, minimum group sizes (n ≥ 5), confidence intervals and human review of any people decision.", signal: "Tests maturity and ethics." },
+  { cat: "HR Analytics Concepts", s: "dd", q: "How would you introduce people analytics in a company that has never used it?", a: "Start small with one high-value, low-sensitivity question (e.g. where is attrition highest?), fix the data needed for it, agree definitions with HR and Finance, publish a simple dashboard, then show one decision it changed. Credibility from a quick win funds the next phase.", signal: "Change-management thinking." },
+  { cat: "HR Analytics Concepts", s: "dd", q: "What is employee lifetime value?", a: "An estimate of the net value an employee creates over their tenure: (productivity/revenue contribution − total cost of employment) × expected tenure, minus hiring and ramp-up cost. It's directional, but useful to show why reducing early attrition (15% of 2025 exits had < 1 year tenure) has real financial value.", signal: "Tests financial framing of HR." },
+
+  // ---------- HR Metrics & Formulas ----------
+  { cat: "HR Metrics & Formulas", s: "vs", q: "What is the turnover (attrition) rate and how do you calculate it?", a: "Separations in a period ÷ average headcount in that period × 100, with average headcount = (opening + closing) ÷ 2. For a monthly figure, annualise ×12 or sum 12 monthly rates. Always state whether it's total, voluntary or regrettable attrition.", signal: "Must-know formula; denominators are the common mistake." },
+  { cat: "HR Metrics & Formulas", s: "ib", q: "Which metrics would you use to measure HR effectiveness?", a: "Attrition (voluntary & regrettable), time to fill, cost per hire, offer acceptance, quality of hire, absenteeism, engagement/eNPS, training hours and ROI, internal mobility/promotion rate, compa-ratio and pay equity, diversity at each level. Pick the few that map to current business priorities.", signal: "Breadth check; finish by prioritising." },
+  { cat: "HR Metrics & Formulas", s: "sjHR", q: "How would you define and measure 'quality of hire'?", a: "Combine signals available 6–12 months after joining: first-year retention, first performance rating, time to productivity, and hiring-manager satisfaction. Normalise each to a 0–100 scale and average. Track it by source and recruiter, since that's what makes it actionable.", signal: "No single standard formula, so they test your judgment." },
+  { cat: "HR Metrics & Formulas", s: "vs", q: "What is cost per hire?", a: "Total recruiting cost (external: agency fees, job boards, referral bonuses, campus; internal: recruiter time, tools) ÷ number of hires in the period. In this project it's sourcing cost per joined candidate, ₹37K on average in 2025, ranging from ~₹2.5K (career site) to ~₹1.5L (consultant).", signal: "Tests a standard recruitment formula." },
+  { cat: "HR Metrics & Formulas", s: "ib", q: "What is absenteeism rate and how do you calculate it?", a: "Unplanned absence days ÷ scheduled working days × 100. Use sick leave and unpaid/unauthorised absence, not planned earned leave. Proxima's 2025 absenteeism is 1.6%. Pair it with overtime: high overtime plus rising sick days is an early burnout signal.", signal: "Formula + interpretation." },
+  { cat: "HR Metrics & Formulas", s: "vs", q: "What is the difference between turnover and churn analysis?", a: "Turnover/attrition is the rate. Churn analysis is the investigation behind it: who leaves (segments), when (tenure curve), why (exit reasons, drivers) and what predicts it. A good churn analysis ends with targeted actions per segment.", signal: "Vocabulary + approach." },
+  { cat: "HR Metrics & Formulas", s: "dd", q: "How do you benchmark HR metrics?", a: "Compare against (1) your own history (trend), (2) internal peers (department vs department), and (3) external benchmarks from industry salary/attrition surveys for the same industry, geography and role mix. Never compare a tech company's attrition with a manufacturing benchmark without adjusting.", signal: "Shows judgment about comparability." },
+  { cat: "HR Metrics & Formulas", s: "dd", q: "What considerations matter for compensation benchmarking?", a: "Match jobs by level and role (not title alone), use total compensation (fixed + variable + benefits), use the market median for the same city tier, check pay compression (new hires paid more than tenured staff), and track compa-ratio and gender gap by level.", signal: "Comp analytics depth." },
+  { cat: "HR Metrics & Formulas", s: "sjPA", q: "How would you approach a pay equity analysis with small samples?", a: "Compare like-for-like groups (same level, role family, location), then use a regression of pay on legitimate factors (level, tenure, performance, location) and check whether gender still explains a gap. With small groups, report ranges and avoid naming individuals; remediate case by case.", signal: "Tests statistical and ethical care." },
+
+  // ---------- Recruitment & Workforce Planning ----------
+  { cat: "Recruitment & Workforce Planning", s: "vs", q: "How can HR analytics improve recruitment?", a: "By measuring the funnel stage by stage (applications → screen → interviews → offer → join), comparing sources on cost, speed and quality, finding bottleneck stages (e.g. offers declined for relocation), and forecasting hiring needs from attrition and growth plans.", signal: "Practical recruitment analytics." },
+  { cat: "Recruitment & Workforce Planning", s: "vs", q: "What is workforce planning, and how does analytics support it?", a: "Workforce planning matches future talent supply to business demand. Analytics provides the inputs: current headcount by skill and level, expected attrition (by segment), retirement, internal promotions, hiring lead time (45+ days) and notice periods (60–90 days in India). Gap = demand − projected supply → hiring plan.", signal: "Core strategic HR use case." },
+  { cat: "Recruitment & Workforce Planning", s: "dd", q: "How would you forecast future hiring needs?", a: "Project closing headcount = current headcount − expected exits (attrition rate × headcount by segment) + approved growth. Use historical monthly patterns (e.g. April–June exits after appraisals) and add business drivers such as new projects. Validate the model on last year before using it.", signal: "Forecasting approach without heavy math." },
+  { cat: "Recruitment & Workforce Planning", s: "sjHR", q: "Time-to-fill is defined differently by each team. How do you standardise it?", a: "Agree one definition (requisition approved → offer accepted), document it in a metrics dictionary, recompute history with the new definition, show old vs new side by side once, and lock it in the dashboard. In this project time to fill excludes campus requisitions.", signal: "Governance of KPI definitions." },
+  { cat: "Recruitment & Workforce Planning", s: "sjHR", q: "How do you join ATS and HRIS data accurately?", a: "Use a stable key (candidate → employee ID mapping on joining), not names. Check that joining dates match HireDate, reconcile hires counted in ATS vs HRIS each month, and log mismatches. Here, Candidates.EmployeeID links to Employees for joined candidates only.", signal: "Data integration rigour." },
+  { cat: "Recruitment & Workforce Planning", s: "sjPA", q: "How would you test whether a new interview step improves quality of hire?", a: "Run it as an experiment: randomly apply the new step to some requisitions, keep others as control, pre-define success metrics (first-year retention, first rating, time to fill), make sure groups are big enough, and compare after enough hires have matured.", signal: "Experimental design in HR." },
+  { cat: "Recruitment & Workforce Planning", s: "hu", q: "HR says headcount is 1,338 and Finance says 1,351. How do you investigate?", a: "Compare definitions and dates first: Finance often counts everyone paid in the month (including leavers' final salary), contractors, or uses cost-centre timing. Build a bridge from one number to the other. In this dataset 1,351 employees were paid in Dec-2025 = 1,338 on the rolls + 13 who left during December.", signal: "Very common real-world reconciliation question." },
+
+  // ---------- Engagement, Performance & DEI ----------
+  { cat: "Engagement, Performance & DEI", s: "vs", q: "What is employee engagement and how do you measure it?", a: "The level of commitment and energy employees bring to work. Measure with a regular survey (engagement items, eNPS, intent to stay), plus behavioural signals: absenteeism, overtime, internal mobility and attrition. Proxima's engagement index is ~72% and eNPS +16.", signal: "Definition + measurement." },
+  { cat: "Engagement, Performance & DEI", s: "sjHR", q: "How would you design an engagement survey that leads to action?", a: "Keep it short (15–25 items), use validated questions, include eNPS and intent to stay, guarantee anonymity with a minimum reporting group (n ≥ 5), pre-agree which team owns each driver, and re-survey to check if actions worked. Link responses to later exits to prove the survey predicts behaviour.", signal: "Tests survey design beyond 'send a form'." },
+  { cat: "Engagement, Performance & DEI", s: "dd", q: "How do you measure the effectiveness of a training program?", a: "Use a before/after design with a comparison group: completion, assessment score, and then outcome metrics such as rating movement, promotion rate and attrition of trained vs similar untrained employees. Be honest that motivated people self-select into training.", signal: "Kirkpatrick-style thinking." },
+  { cat: "Engagement, Performance & DEI", s: "dd", q: "How would you measure the ROI of an onboarding program?", a: "Compare cohorts before and after the program on time to productivity, 90-day and first-year attrition, and first performance rating. Translate reduced early exits into money: avoided replacement cost (cost per hire + vacancy days + ramp-up).", signal: "Financial framing of an HR program." },
+  { cat: "Engagement, Performance & DEI", s: "vs", q: "How can HR analytics support diversity and inclusion?", a: "Measure representation at every stage (applicants, hires, promotions, leadership, exits), pay gap by level, and engagement by group. Look for where representation drops off: e.g. women are 36% of Proxima but 33% of L5+ leadership, so promotion and hiring at senior levels is where to focus.", signal: "DEI with numbers." },
+  { cat: "Engagement, Performance & DEI", s: "sjPA", q: "How do you use analytics to improve fairness in performance calibration?", a: "Compare rating distributions by manager, department, gender and tenure; flag outliers (e.g. one team with 60% top ratings); check ratings against objective outcomes like goal achievement; and bring this data into calibration meetings rather than overriding ratings afterwards.", signal: "Performance analytics + fairness." },
+  { cat: "Engagement, Performance & DEI", s: "vs", q: "How can analytics help identify burnout?", a: "Combine workload and wellbeing signals: sustained overtime, rising sick leave, unused annual leave, late logins, falling survey scores. In this project employees averaging 15+ overtime hours a month left at 16.7% vs 10.1% for those under 3 hours.", signal: "Uses data to protect people." },
+  { cat: "Engagement, Performance & DEI", s: "sjPA", q: "What is your view on 'flight risk' scores for individuals?", a: "Useful as a cohort-level signal to target positive interventions (career conversations, pay review), risky as a label on individuals. Exclude protected attributes, audit for bias, restrict access to HRBPs, and never use it for punitive decisions.", signal: "Ethics question increasingly asked." },
+
+  // ---------- HRIS, Data Quality & Privacy ----------
+  { cat: "HRIS, Data Quality & Privacy", s: "ib", q: "How do you ensure the accuracy of HR data?", a: "Validate at source (mandatory fields, allowed values), run automated checks (duplicates, orphan keys, impossible dates), reconcile key totals across systems monthly (HRIS vs payroll headcount), and fix errors in the source system, not in the dashboard.", signal: "Data-quality discipline." },
+  { cat: "HRIS, Data Quality & Privacy", s: "dd", q: "How do you handle missing or incomplete HR data?", a: "First find out why it's missing: by design (no rating for new joiners), process gap, or system error. Expected blanks are excluded from averages; process gaps are fixed at source; only use imputation for modelling, and state it. Never fill blanks with zero.", signal: "Missing-data judgment." },
+  { cat: "HRIS, Data Quality & Privacy", s: "ib", q: "How do you protect confidential employee data?", a: "Least-privilege access and row-level security, mask personal identifiers (names, phone, PAN), aggregate with a minimum group size, encrypt exports, log access, and follow India's DPDP Act 2023 (and GDPR for EU staff). Salary pages should have a stricter audience than headcount pages.", signal: "Mandatory topic in any HR analytics interview." },
+  { cat: "HRIS, Data Quality & Privacy", s: "hu", q: "How do you validate data before building a dashboard?", a: "Check row counts against the source, profile each column (nulls, ranges, distinct values), test join keys for orphans and duplicates, recompute 3–5 headline numbers in SQL, and get an HR owner to sanity-check one familiar number (e.g. last month's joiners).", signal: "Practical QA process." },
+  { cat: "HRIS, Data Quality & Privacy", s: "hu", q: "An employee disappeared from the dashboard after a job change. What do you check?", a: "Effective dates in the job-history (SCD) table: is the new record's EffectiveFrom after the report date, or does the old record's EffectiveTo end before it? Also check whether the new department/designation exists in the dimension tables. It's usually a date or mapping issue, not a tool bug.", signal: "Tests understanding of effective-dated HR data." },
+  { cat: "HRIS, Data Quality & Privacy", s: "hu", q: "You found duplicate employee records after an import. What do you do?", a: "Stop downstream refreshes, identify duplicates on stable attributes (ID, email, DOB + name), find the root cause in the import, merge or delete with an audit trail, re-run reports, and add a uniqueness check to the pipeline.", signal: "Incident handling." },
+  { cat: "HRIS, Data Quality & Privacy", s: "vs", q: "What is an HRIS and how does it support analytics?", a: "A Human Resource Information System stores and manages employee records: master data, job history, compensation, leave, org structure. For analytics it's the system of record; a warehouse then combines it with payroll, ATS and survey data for reporting.", signal: "Systems vocabulary." },
+  { cat: "HRIS, Data Quality & Privacy", s: "dd", q: "How would you design a pipeline that consolidates data from multiple HR systems?", a: "Extract from each system on a schedule, land raw data, standardise formats (dates, IDs, department codes), validate (counts, keys), and load into a star schema in a warehouse. Then point BI tools at the warehouse only. That's exactly this project's pipeline.", signal: "End-to-end data engineering awareness." },
+  { cat: "HRIS, Data Quality & Privacy", s: "sjHR", q: "What is a metrics dictionary and why does HR need one?", a: "A single document defining every KPI: name, business question, formula, source fields, filters, owner and change history. It stops HR and Finance reporting different headcounts. The KPI Library on this site is a metrics dictionary.", signal: "Governance maturity." },
+
+  // ---------- Behavioral ----------
+  { cat: "Behavioral (HR Analyst)", s: "sjHR", q: "Walk me through an end-to-end HR analytics project you did.", a: "Use STAR with numbers: Situation (HR data in silos, attrition seen too late) → Task (build a single model and dashboards) → Action (18-table model, 67 KPIs, Tableau + Power BI, SQL reconciliation) → Result (13.5% attrition explained by pay position and workload; three specific recommendations).", signal: "Almost certain to be asked." },
+  { cat: "Behavioral (HR Analyst)", s: "dd", q: "Tell me about a time you found a significant pattern in HR data.", a: "Pick one finding and its impact, e.g. \"Employees below 0.85 compa-ratio were leaving at almost twice the rate. I quantified the cost of replacing them versus a targeted correction and presented both options to the HR head.\"", signal: "Insight-to-action story." },
+  { cat: "Behavioral (HR Analyst)", s: "dd", q: "Describe a time you had to correct a mistake after a report was shared.", a: "Own it quickly: \"Our first headcount excluded 26 serving-notice employees because of a status filter. I informed the stakeholders the same day with the corrected number and the reason, fixed the measure and added a QA test.\"", signal: "Accountability." },
+  { cat: "Behavioral (HR Analyst)", s: "ib", q: "How would you explain a statistical finding to a non-technical HR manager?", a: "Lead with the decision, use plain language and one visual: \"People paid well below market leave about twice as often. Fixing pay for those 300 people is cheaper than replacing the ~40 we'd otherwise lose.\" Keep methods for follow-up questions.", signal: "Communication skill." },
+  { cat: "Behavioral (HR Analyst)", s: "df", q: "Tell me about influencing a leader whose intuition contradicted the data.", a: "Acknowledge their view, show the data in their terms, test their hypothesis openly (\"you think it's the manager. Here is attrition by manager vs by pay band\"), and propose a small pilot rather than a big argument.", signal: "Influence without authority." },
+  { cat: "Behavioral (HR Analyst)", s: "sjPA", q: "A VP asks: 'Is our attrition a problem?' How do you answer?", a: "Clarify what 'problem' means (cost, critical roles, trend). Then segment: voluntary vs involuntary, regrettable vs not, by department, level and tenure; compare with last year and an industry benchmark; and come back with where it is a problem and one action per hotspot.", signal: "Structured thinking under an open question." },
+  { cat: "Behavioral (HR Analyst)", s: "ib", q: "How do you handle data discrepancies or inconsistencies?", a: "Verify against a second source, find the root cause (definition, timing, mapping), fix it at the source, document it, and add a check so it can't recur. Communicate the impact on any number already shared.", signal: "Process + communication." },
+  { cat: "Behavioral (HR Analyst)", s: "sjHR", q: "How do you prioritise urgent executive requests against long-term analytics work?", a: "Triage by decision impact and deadline, keep a visible queue, reserve some weekly capacity for ad hoc requests, and tell stakeholders explicitly what moves when something urgent comes in.", signal: "Stakeholder management." },
+  { cat: "Behavioral (HR Analyst)", s: "hq", q: "How do you stay updated with HR analytics trends?", a: "Mention concrete sources: SHRM and AIHR articles, Power BI/Tableau community galleries, LinkedIn people-analytics leaders, and practising on projects like this one. Add one thing you learned recently and applied.", signal: "Learning mindset." },
+  { cat: "Behavioral (HR Analyst)", s: "sjPA", q: "What would your first 90 days look like as the first people analyst?", a: "Days 1–30: meet stakeholders, audit data and definitions, list the top questions. Days 31–60: build the core model and a headcount/attrition dashboard, agree a metrics dictionary. Days 61–90: launch a monthly review, deliver one deep-dive (e.g. attrition drivers) and plan the roadmap.", signal: "Planning and prioritisation." },
+];
+WEB_QA.forEach(x => { x.src = SRC[x.s]; });
+QA_CATS.push(...WEB_QA_CATS);
+QA.push(...WEB_QA);
+const QA_REFERENCES = Object.values(SRC);
+
+/* ---------------- Industry sample dashboards ---------------- */
+const VIDI_URL = "https://vidi-corp.com/power-bi-hr-dashboard-examples/";
+const SAMPLE_IMAGE_DASHBOARDS = [
+  { img: "assets/sample-attrition-mokkup.png", t: "Attrition Dashboard", by: "Mokkup.ai (Power BI / Tableau template)",
+    does: "Tracks how many people join and leave and where attrition concentrates.",
+    kpis: "Total employees, joining, leaving, inbound/outbound ratio, average tenure (each vs previous period)",
+    visuals: "Tenure donut, joining vs leaving trend, attrition by department and job role split by gender, exit reasons, tenure × salary-band heatmap",
+    proxima: "Page 02 Attrition & Retention. Build the tenure × compa-band heatmap with our data." },
+  { img: "assets/sample-recruitment-agile.gif", t: "HR Recruitment Dashboard", by: "Agile Analytics (Power BI)",
+    does: "Follows the hiring pipeline from applicants to hires and shows which roles and sources fill vacancies.",
+    kpis: "% vacancies filled, applicants, screening, interviews, assessment, offered, hired, screening-to-hire ratio",
+    visuals: "Funnel KPI strip, active vacancies by month (year vs year), vacancies vs filled by department, filled roles by level & position type, filled roles by source",
+    proxima: "Page 03 Talent Acquisition. Use Candidates stage dates for the funnel strip." },
+];
+const VIDI_DASHBOARDS = [
+  ["HR Dashboard for CEO", "Executive summary: headcount, hires, terminations, workforce cost, diversity, location/department split", "What is the current state of our workforce?", "CEO, board", "01 Workforce Overview"],
+  ["Employee Headcount Dashboard", "Headcount by role, department, gender, age, education, tenure; average monthly income by role", "How is headcount distributed and what does it cost?", "Senior management", "01 Workforce Overview"],
+  ["Recruitment Dashboard (vacancies)", "Filled vs unfilled positions by job role and location", "Which roles must be filled, and where is the operational risk?", "Recruiters", "03 Talent Acquisition"],
+  ["Recruitment Analytics Dashboard", "Applications, cost and offers by source; cost per application, interview and offer", "Which recruitment channels are most cost-efficient?", "TA lead, finance", "03 Talent Acquisition"],
+  ["Payroll & Compensation Dashboard", "Payroll cost split into wages, pension, insurance; cost by department and project", "What is our full payroll cost and where does it go?", "CFO, payroll", "04 Compensation & Payroll"],
+  ["Payroll per Project Dashboard", "Daily payroll cost by project, billable vs non-billable hours, hours by employee and role", "How do people costs map to clients and projects?", "Delivery heads, finance", "04 Compensation & Payroll"],
+  ["HR Attrition Dashboard (main)", "New joiners, resignations, attrition %, net headcount change by unit, overtime cost per person", "Which units are hit by attrition, and what does it cost?", "CHRO, unit heads", "02 Attrition & Retention"],
+  ["Attrition Dashboard (resignations)", "Resignations by department, job role and reason; attrition % by month", "Why are people leaving and where should we focus?", "HRBPs", "02 Attrition & Retention"],
+  ["Overtime Analysis Dashboard", "Overtime hours and cost by location and unit, monthly trend", "Is attrition driving up overtime spend?", "Operations, HR", "06 Engagement & Attendance"],
+  ["HR Diversity Dashboard (gender)", "Age and gender distribution and representation by age group", "Are there hidden biases in hiring or promotion?", "DEI lead", "01 Workforce / 05 Performance"],
+  ["DEI Dashboard (identity)", "Employee counts by self-identified demographic groups (aggregated)", "Do our hiring practices show unintended preferences?", "DEI lead (restricted access)", "Not in this dataset: needs consent-based, aggregated data"],
+  ["Tableau HR Dashboard (headcount)", "Month start/end headcount, joiners, leavers, demographics, department headcount, 12-month hiring trend, tenure & age by department", "What is our headcount status and staffing trend?", "Workforce planning", "01 Workforce Overview"],
+];
+/* ============================================================
    Helpers
    ============================================================ */
 const CHART_COLORS = ["#1677D2", "#F59E0B", "#22C3EE", "#7C3AED", "#16A34A", "#DC2626", "#5B6472", "#0EA5E9"];
@@ -1257,7 +1373,7 @@ function renderQaList() {
   if (!list.length) { wrap.appendChild(el("div", "empty-state", qaStarredOnly ? "No starred questions yet. Tap the ★ on any question to save it here." : "No questions match that search.")); return; }
   list.forEach(item => {
     const id = item.cat + "::" + item.q; const done = !!st.qa[id]; const starred = !!bm.qa[item.q]; const isLong = item.a.length > 480;
-    const card = el("div", "qa-item"); card.id = "qa-" + slugify(item.q);
+    const card = el("div", "qa-item" + (done ? " reviewed" : "")); card.id = "qa-" + slugify(item.q);
     card.innerHTML = `
       <div class="qa-q"><span class="num">${esc(item.cat)}</span><span class="qtext">${esc(item.q)}</span>
         <button class="link-btn" title="Copy link to this question">🔗</button>
@@ -1266,7 +1382,8 @@ function renderQaList() {
         <div class="answer-text ${isLong ? "clamped" : ""}"><p>${item.a}</p></div>
         ${isLong ? '<button type="button" class="show-full-btn">Show full answer ▾</button>' : ""}
         <div class="signal">Interviewer signal: ${esc(item.signal)}</div>
-        <button class="mark-btn ${done ? "done" : ""}" style="margin-top:12px;">${done ? "✓ Reviewed" : "Mark reviewed"}</button></div></div>`;
+        ${item.src ? `<div class="q-src">📚 Source: <a href="${item.src[1]}" target="_blank" rel="noopener">${esc(item.src[0])} ↗</a></div>` : ""}
+        <button class="mark-btn ${done ? "done" : ""}">${done ? "✓ Reviewed" : "Mark as reviewed"}</button></div></div>`;
     const aDiv = card.querySelector(".qa-a");
     card.querySelector(".qa-q").addEventListener("click", (ev) => {
       if (ev.target.closest(".star-btn") || ev.target.closest(".link-btn")) return;
@@ -1275,7 +1392,7 @@ function renderQaList() {
     const sf = card.querySelector(".show-full-btn");
     if (sf) sf.addEventListener("click", (ev) => { ev.stopPropagation(); const t = card.querySelector(".answer-text"); const c = t.classList.toggle("clamped"); sf.textContent = c ? "Show full answer ▾" : "Show less ▴"; if (card.classList.contains("open")) aDiv.style.maxHeight = aDiv.scrollHeight + "px"; });
     const mb = card.querySelector(".mark-btn");
-    mb.addEventListener("click", (ev) => { ev.stopPropagation(); const s2 = loadState(); s2.qa[id] = !s2.qa[id]; saveState(s2); mb.classList.toggle("done", s2.qa[id]); mb.textContent = s2.qa[id] ? "✓ Reviewed" : "Mark reviewed"; updateQaProgressBar(); refreshProgress(); });
+    mb.addEventListener("click", (ev) => { ev.stopPropagation(); const s2 = loadState(); s2.qa[id] = !s2.qa[id]; saveState(s2); mb.classList.toggle("done", s2.qa[id]); mb.textContent = s2.qa[id] ? "✓ Reviewed" : "Mark as reviewed"; card.classList.toggle("reviewed", !!s2.qa[id]); updateQaProgressBar(); refreshProgress(); });
     card.querySelector(".star-btn").addEventListener("click", (ev) => { ev.stopPropagation(); toggleBookmark("qa", item.q); renderQaList(); });
     card.querySelector(".link-btn").addEventListener("click", (ev) => { ev.stopPropagation(); copyDeepLink("qa", item.q); });
     wrap.appendChild(card);
@@ -1352,6 +1469,32 @@ function renderProgressPage() {
     saveState({}); try { localStorage.removeItem(STORE_KEY); } catch (e) {}
     renderJourney(); renderChecklist("deliv-grid", DELIVERABLES, "deliv"); renderAssignments(); renderLab(); renderQaList(); renderQA(); refreshProgress();
   });
+}
+
+function renderSamples() {
+  const g = document.getElementById("sample-grid");
+  if (g) {
+    g.innerHTML = SAMPLE_IMAGE_DASHBOARDS.map((d, i) => `
+      <div class="card sample-card">
+        <img src="${d.img}" alt="${esc(d.t)} by ${esc(d.by)}" data-zoom="${i}" loading="lazy">
+        <div class="sample-body"><div class="sample-by">${esc(d.by)}</div><h4>${esc(d.t)}</h4>
+          <p><strong>What it does:</strong> ${esc(d.does)}</p><p><strong>KPIs:</strong> ${esc(d.kpis)}</p>
+          <p><strong>Visuals:</strong> ${esc(d.visuals)}</p><div class="sample-px">➜ ${esc(d.proxima)}</div></div>
+      </div>`).join("");
+    g.querySelectorAll("[data-zoom]").forEach(im => im.addEventListener("click", () => openModal(`<img class="zoom-img" src="${im.src}" alt="${esc(im.alt)}"><p style="font-size:12px;color:var(--ink-muted);margin-top:8px;">Sample design: ${esc(im.alt)}. Shown for learning; values are not from the Proxima dataset.</p>`)));
+  }
+  const t = document.getElementById("vidi-table");
+  if (t) t.innerHTML = `<thead><tr><th>#</th><th>Dashboard</th><th>What it shows</th><th>Question it answers</th><th>Who uses it</th><th>Build it on Proxima page</th></tr></thead>
+    <tbody>${VIDI_DASHBOARDS.map((r, i) => `<tr><td>${i + 1}</td><td><strong>${esc(r[0])}</strong></td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td></tr>`).join("")}</tbody>`;
+}
+function renderQaRefs() {
+  const w = document.getElementById("qa-refs"); if (!w) return;
+  w.innerHTML = QA_REFERENCES.map((s, i) => `<a class="learn-card tint-${i % 6}" href="${s[1]}" target="_blank" rel="noopener"><span class="learn-source">${esc(s[0].split(":")[0])}</span><h4>${esc(s[0].split(": ").slice(1).join(": ") || s[0])}</h4><span class="learn-cta">Open source ↗</span></a>`).join("");
+}
+function initBrandHome() {
+  document.querySelectorAll("#brand-home, .brand-home-link").forEach(a => a.addEventListener("click", (e) => {
+    e.preventDefault(); if (location.hash) history.replaceState(null, "", location.pathname); switchView("overview");
+  }));
 }
 /* ============================================================
    Navigation
@@ -1694,7 +1837,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderKpiPills, renderKpiGrid, renderSql, renderExcel, renderAnalysis, renderGallery, renderQA, renderAssignments, renderLab,
     renderQaTabs, renderQaList, renderPitch, renderCareer, renderGlossary, renderTips, renderLearningLinks, renderProgressPage,
     initNav, initMobileToggle, initSearch, initSocial, initVisitorCounter, initChatWidget, initThemeToggle, updateStreak,
-    initQuiz, initStarredToggles, initCmdk, initCheatSheet, initModal, refreshProgress, renderContinueBanner, handleDeepLink,
+    initQuiz, initStarredToggles, initCmdk, initCheatSheet, initModal, renderSamples, renderQaRefs, initBrandHome, refreshProgress, renderContinueBanner, handleDeepLink,
   ];
   steps.forEach(fn => { try { fn(); } catch (e) { console.error("Boot step failed:", fn.name || "(anonymous)", e); } });
   window.addEventListener("hashchange", handleDeepLink);
