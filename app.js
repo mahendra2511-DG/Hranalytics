@@ -735,6 +735,7 @@ const PORTFOLIO = [
 
 /* ---------------- LEARN MORE ---------------- */
 const LEARNING_LINKS = [
+  { title: "90-Day AI Learning", desc: "After this project, start your AI journey: a 90-day, week-by-week AI engineer learning plan with a project every week.", url: "https://90daysailearning.vercel.app/", source: "AI Learning" },
   { title: "Data Analyst Roadmap (roadmap.sh)", desc: "A step-by-step visual roadmap of every skill a data analyst needs, from Excel and SQL to statistics and BI tools. Use it to plan what to learn after this project.", url: "https://roadmap.sh/data-analyst", source: "roadmap.sh" },
   { title: "Tableau — Free Training Videos", desc: "Tableau's own on-demand video library: connecting to data, LOD expressions and dashboards.", url: "https://www.tableau.com/learn/training", source: "Tableau" },
   { title: "Tableau Public Gallery", desc: "Search \"HR dashboard\" or \"attrition\" for layout and design inspiration before you build your own.", url: "https://public.tableau.com/en-us/s/", source: "Tableau" },
