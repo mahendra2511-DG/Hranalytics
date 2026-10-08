@@ -8,6 +8,7 @@
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <meta http-equiv="Cache-Control" content="no-cache">
 <link rel="stylesheet" href="styles.css?v=20261007-hr">
+<link rel="stylesheet" href="sim-kit.css?v=20261008-sim">
 </head>
 <body>
 
@@ -72,6 +73,10 @@
       <div class="nav-group-label">Practice</div>
       <button data-view="assignments"><span class="ic">📝</span><span class="lbl">Assignments</span></button>
       <button data-view="lab"><span class="ic">🧠</span><span class="lbl">Analyst Thinking Lab</span></button>
+      <div class="nav-group-label">Job Simulator</div>
+      <button data-view="incident"><span class="ic">🚨</span><span class="lbl">Incident Room</span><span class="nav-live">NEW</span></button>
+      <button data-view="broken"><span class="ic">🧩</span><span class="lbl">Broken Dashboard</span></button>
+      <button data-view="stakeholder"><span class="ic">💬</span><span class="lbl">Stakeholder Simulator</span></button>
 
       <div class="nav-group-label">Interview</div>
       <button data-view="interview"><span class="ic">🎤</span><span class="lbl">Interview Questions</span></button>
@@ -115,7 +120,7 @@
         <div class="ds-float ds-f4" id="hero-today-card"></div>
         <div class="ds-center">
           <div class="ds-pill"><i></i> Live capstone · Excel → Tableau → Power BI → Final presentation</div>
-          <h1 class="ds-h1">Everything an <span>HR Analyst</span> needs. In one project.</h1>
+          <h1 class="ds-h1">Everything a <span>Data Analyst</span> needs. In one project.</h1>
           <p class="ds-lead">Five years of people data for Proxima Business Services (2021–2025): headcount, hiring, attrition, pay, performance, training, leave and engagement. 18 tables and 67 KPIs, built in Excel, MySQL, Tableau and Power BI, checked in QA and presented to your trainer every week, ending with the final presentation.</p>
           <div class="ds-cta">
             <button class="btn-dark ds-start" data-goto="journey-anchor">Start Learning Journey <span aria-hidden="true">→</span></button>
@@ -759,6 +764,43 @@
   </div>
 </section>
 
+<!-- ===================== JOB SIMULATOR ===================== -->
+<section class="view" id="view-incident">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">🧪 Job Simulator · Incident Room</div>
+      <h2>Something's wrong with a number. Find out why.</h2>
+      <p>A stakeholder has found a number that looks wrong and needs a decision today. Pick the evidence that matters, name the root cause and choose the fix.</p>
+    </div>
+    <div class="js-summary"></div>
+    <div id="inc-root"></div>
+  </div>
+</section>
+
+<section class="view" id="view-broken">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">🧪 Job Simulator · Broken Dashboard</div>
+      <h2>Review a dashboard before leadership sees it</h2>
+      <p>A junior analyst built the CY2025 workforce dashboard for the leadership review. Flag every number you would not present, then check the chart.</p>
+    </div>
+    <div class="js-summary"></div>
+    <div id="brk-root"></div>
+  </div>
+</section>
+
+<section class="view" id="view-stakeholder">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">🧪 Job Simulator · Stakeholder Simulator</div>
+      <h2>Clarify the request before you build</h2>
+      <p>HR and Finance leaders often ask for a dashboard in one vague line. Choose the clarifying questions that define the decision, metric, period, scope and rules before you build.</p>
+    </div>
+    <div class="js-summary"></div>
+    <div id="stk-root"></div>
+  </div>
+</section>
+
 <!-- ===================== INTERVIEW ===================== -->
 <section class="view" id="view-interview">
   <div class="wrap">
@@ -995,6 +1037,11 @@
 <script>document.write('<script src="schedule-config.js?t=' + Date.now() + '"><\/script>');</script>
 <script>document.write('<script src="project-schedule.js?t=' + Date.now() + '"><\/script>');</script>
 <script src="assets/practice-db.js?v=20261007-hr"></script>
-<script src="app.js?v=20261007-hr"></script>
+<script src="app.js?v=20261008-da"></script>
+<script src="sim-content.js?v=20261008-sim"></script>
+<script>window.SIM_CFG = {"key": "proxima_hr", "syncKeys": ["proxima_hr_state_v1", "proxima_hr_editor_v1"], "editorKey": "proxima_hr_editor_v1", "sqlTotal": 24};</script>
+<script src="sim-kit.js?v=20261008-sim"></script>
+<script>window.VISIT_KEY = "proxima_hr";</script>
+<script src="visit-kit.js?v=20261008-sim"></script>
 </body>
 </html>
