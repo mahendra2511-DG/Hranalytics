@@ -43,3 +43,12 @@ Project → **Deployments** → sabse upar wale ke **⋯** → **Redeploy**.
 - **Trainer login** on Project Schedule → a "👥 Student visits" panel appears below the schedule:
   who visited, first/last visit, visited today ✓, active days, page views, most opened pages, a 30-day chart, search, group filter and **Download CSV**.
 - Same student on phone + laptop shows as one row (merged by name + group).
+
+
+## Ek saath kai batches (project codes, jaise P1426 aur P1427)
+- Trainer login → **+ New project** → code daalo (P1426). Har code ka apna kick-off, presentation din, **time** aur groups hota hai.
+- Students site kholte hi **Project code + naam + group** chunte hain. Code list me time bhi dikhta hai (P1426 · Sat 7:00 PM), taaki sahi batch chunein.
+- Schedule page par sabse upar **Batch dashboard**: har code ka time, agla presentation, aur Excel / Tableau / Power BI / SQL QA / Final me kitne groups ho gaye. Ye students ko bhi dikhta hai.
+- Student ko apna card dikhta hai: uske group ka har presentation ka status (✅ / ⏳ / ❌), kya pending hai, agla presentation kab hai.
+- Trainer ki **Student visits** report me project code ke hisaab se filter, har code ke tiles, aur CSV me Project code column.
+- Purane students (jinhone pehle sirf naam daala tha) ko ek baar code chunne ko kaha jayega, jab ek se zyada code chal rahe hon.

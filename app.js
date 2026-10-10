@@ -2730,6 +2730,7 @@ function schSaveDraft(d) { d.updated = new Date().toISOString(); if (SCH_API) { 
 function schCurrent(d) {
   let code = schIsTrainer() ? schEditCode : null;
   if (!code) { try { code = lsGet(SCH_VIEW); } catch (e) {} }
+  if (!code && !schIsTrainer()) { const m = schMe(); if (m && m.batch) code = m.batch; }
   const h = schFromHash(); if (!schIsTrainer() && h && h.code) code = h.code;
   return d.projects.find(p => p.code === code) || d.projects.find(p => p.code === d.active) || d.projects[0] || null;
 }
@@ -2763,6 +2764,51 @@ function schNewProject(code) {
   return { code, name: "HR Analytics Capstone", kickoff: ymd(fri), presDay: 6, time: "9:00 PM – 10:00 PM", overrides: {}, groups, status: {} };
 }
 
+/* ---------- batches (several project codes at once, e.g. P1426 + P1427) ---------- */
+function schMe() { try { const m = JSON.parse(lsGet(SCH_VIEW.replace(/_schedule_view$/, "_student_v1"))); return m && m.name ? m : null; } catch (e) { return null; } }
+function schMyGroup(p) { const m = schMe(); if (!m || !p || (m.batch && m.batch !== p.code)) return null; const k = String(m.group || "").trim().toLowerCase(); return (p.groups || []).find(g => String(g.name).trim().toLowerCase() === k) || null; }
+function schBatchesHtml(d, cur) {
+  if (!d.projects.length) return "";
+  const m = schMe(); const tr = schIsTrainer();
+  const rows = d.projects.map(p => {
+    const ds = schStageDates(p); const nx = schNext(p); const n = (p.groups || []).length;
+    const cell = (k) => { const c = schCounts(p, k); return `<td class="sch-bc ${n && c.done === n ? "all" : ""}">${c.done}/${n}${c.absent ? ` <span title="Nobody from the group presented">❌${c.absent}</span>` : ""}</td>`; };
+    const mine = m && m.batch === p.code;
+    return `<tr class="${cur && p.code === cur.code ? "sch-cur" : ""}" data-bcode="${esc(p.code)}" title="Open ${esc(p.code)}"><td><b>${esc(p.code)}</b>${mine && !tr ? ' <span class="sch-you">Your batch</span>' : ""}${p.name ? `<div class="sch-mem">${esc(p.name)}</div>` : ""}</td>
+      <td>${SCH_DAYS[p.presDay].slice(0, 3)} · ${esc(p.time || "")}</td><td>${nx ? `<span class="sch-nx">${esc(nx.t.replace(" Presentation", ""))}</span><div class="sch-mem">${fmtD(ds[nx.key])}</div>` : "Completed 🎉"}</td><td class="n">${n}</td>${SCH_COLS.map(([k]) => cell(k)).join("")}</tr>`;
+  }).join("");
+  return `<div class="card sch-batches"><div class="sch-bh"><h3>📊 Batch dashboard</h3><span>${d.projects.length} project code${d.projects.length > 1 ? "s" : ""} · groups that have presented, out of all groups. Click a code to open its schedule.</span></div>
+    <div class="table-scroll"><table class="dtable"><thead><tr><th>Project code</th><th>Timing</th><th>Next presentation</th><th>Groups</th>${SCH_COLS.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+function schMyCardHtml(p) {
+  const m = schMe(); if (!m || schIsTrainer() || !p) return "";
+  if (m.batch && m.batch !== p.code) return `<div class="card sch-my other">You are looking at <b>${esc(p.code)}</b>. Your batch is <b>${esc(m.batch)}</b>. <button class="btn-outline" data-bcode="${esc(m.batch)}">Show my batch</button></div>`;
+  const g = schMyGroup(p);
+  if (!g) return `<div class="card sch-my">👋 <b>${esc(m.name)}</b> · ${esc(p.code)}. Your group (${esc(m.group || "none")}) is not in this batch's group list, so your status can't be shown. Click <b>change</b> next to your name in the sidebar and pick your group.</div>`;
+  const ds = schStageDates(p); const nx = schNext(p); const st = (p.status && p.status[g.id]) || {};
+  const pend = SCH_COLS.filter(([k]) => schGroupStatus(p, g, k) !== "done").map(([, l]) => l);
+  return `<div class="card sch-my"><div class="sch-my-h">👋 <b>${esc(m.name)}</b> · <b>${esc(g.name)}</b> · ${esc(p.code)} · every ${SCH_DAYS[p.presDay]}, ${esc(p.time || "")}</div>
+    <div class="sch-my-st">${SCH_COLS.map(([k, l]) => `<span><em>${l}</em> ${stChip(schGroupStatus(p, g, k))}</span>`).join("")}</div>
+    <p>${pend.length ? `Still pending for your group: <b>${pend.join(", ")}</b>.` : "Your group has presented everything. 🎉"}${nx ? ` Next presentation: <b>${esc(nx.t)}</b> on <b>${fmtD(ds[nx.key])}</b>, ${esc(p.time || "")}.` : ""}${st.note ? ` Trainer note: <i>${esc(st.note)}</i>` : ""}</p></div>`;
+}
+(function () {
+  if (document.getElementById("sch-batch-css")) return;
+  const s = document.createElement("style"); s.id = "sch-batch-css";
+  s.textContent = `.sch-batches{padding:18px 20px;margin-bottom:16px}.sch-bh{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}.sch-bh h3{margin:0;font-size:18px}.sch-bh span{font-size:12.5px;color:var(--ink-muted,#666)}
+  .sch-batches tr[data-bcode]{cursor:pointer}.sch-batches tr[data-bcode]:hover td{background:rgba(31,158,139,.06)}.sch-batches tr.sch-cur td{background:rgba(31,158,139,.10)}
+  .sch-batches td.n,.sch-bc{font-family:var(--mono,monospace);text-align:center}.sch-bc.all{color:#15803D;font-weight:700}
+  .sch-you{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;background:#DCFCE7;color:#166534;margin-left:4px;vertical-align:middle}
+  .sch-my{padding:16px 20px;margin-bottom:16px;border-left:4px solid #1F9E8B!important}.sch-my.other{border-left-color:#F59E0B!important;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .sch-my-h{font-size:15px;margin-bottom:10px}.sch-my-st{display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:8px}.sch-my-st em{font-style:normal;font-size:12px;color:var(--ink-muted,#666);margin-right:4px}.sch-my p{margin:0;font-size:13.5px}
+  tr.sch-mine td{background:rgba(31,158,139,.08)}
+  .sch-stage.sch-upnext{background:rgba(250,204,21,.16);border:1px solid rgba(234,179,8,.45);border-radius:14px;padding:12px 14px;margin:4px 0}
+  .sch-upnext-tag{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:#FACC15;color:#422006;vertical-align:middle}
+  .sch-upnext-tag.lt{background:#FEF08A}
+  .hf-li.sch-upnext{background:rgba(250,204,21,.22);border-radius:8px;padding-left:6px;padding-right:6px;font-weight:600}
+  .sch-batches tr td .sch-nx{display:inline-block;background:rgba(250,204,21,.22);border-radius:6px;padding:1px 6px}`;
+  document.head.appendChild(s);
+})();
+
 /* ---------- rendering ---------- */
 const stChip = (s, extra) => `<span class="st-chip ${SCH_ST[s][2]}">${SCH_ST[s][0]} ${SCH_ST[s][1]}${extra || ""}</span>`;
 function renderSchedule() {
@@ -2778,8 +2824,9 @@ function renderSchedule() {
     const [ph, pl] = schPhase(ds[s.key]);
     const c = s.track ? schCounts(p, s.key) : null;
     const qa = s.sqlqa ? schCounts(p, "sqlqa") : null;
-    return `<div class="sch-stage ${ph}"><div class="sch-dot">${ph === "past" ? "✓" : i}</div><div class="sch-body">
-      <div class="sch-when">${fmtD(ds[s.key])} · ${esc(p.time || "")} <span class="sch-ph ${ph}">${pl}</span></div>
+    const up = nx && nx.key === s.key;
+    return `<div class="sch-stage ${ph} ${up ? "sch-upnext" : ""}"><div class="sch-dot">${ph === "past" ? "✓" : i}</div><div class="sch-body">
+      <div class="sch-when">${fmtD(ds[s.key])} · ${esc(p.time || "")} <span class="sch-ph ${ph}">${pl}</span>${up ? `<span class="sch-upnext-tag">Up next</span>` : ""}</div>
       <h4>${s.week ? "Week " + s.week + " · " : ""}${esc(s.t)}</h4><p>${esc(s.d)}</p>
       ${c ? `<div class="sch-counts">${stChip("done", ` ${c.done}`)}${stChip("pending", ` ${c.pending}`)}${c.absent ? stChip("absent", ` ${c.absent}`) : ""}</div>` : ""}
       ${s.sqlqa ? `<div class="sch-qa">+ SQL QA (either week): ${qa.done} of ${(p.groups || []).length} groups done</div>` : ""}
@@ -2787,9 +2834,10 @@ function renderSchedule() {
   }).join("");
   const rows = (p.groups || []).map(g => {
     const st = (p.status && p.status[g.id]) || {};
-    return `<tr><td><strong>${esc(g.name)}</strong>${g.members ? `<div class="sch-mem">${esc(g.members)}</div>` : ""}</td>${SCH_COLS.map(([k]) => `<td>${stChip(schGroupStatus(p, g, k), k === "sqlqa" && st.sqlqaWeek ? ` · ${st.sqlqaWeek === "tableau" ? "Tableau wk" : "Power BI wk"}` : "")}</td>`).join("")}<td class="sch-note">${esc(st.note || "")}</td></tr>`;
+    const mine = (schMyGroup(p) || {}).id === g.id;
+    return `<tr class="${mine ? "sch-mine" : ""}"><td><strong>${esc(g.name)}</strong>${mine ? ' <span class="sch-you">Your group</span>' : ""}${g.members ? `<div class="sch-mem">${esc(g.members)}</div>` : ""}</td>${SCH_COLS.map(([k]) => `<td>${stChip(schGroupStatus(p, g, k), k === "sqlqa" && st.sqlqaWeek ? ` · ${st.sqlqaWeek === "tableau" ? "Tableau wk" : "Power BI wk"}` : "")}</td>`).join("")}<td class="sch-note">${esc(st.note || "")}</td></tr>`;
   }).join("");
-  root.innerHTML = `${picker}
+  root.innerHTML = `${schBatchesHtml(d, p)}${picker}${schMyCardHtml(p)}
     <div class="sch-head card"><div><div class="sch-code">${esc(p.code)}</div><h3>${esc(p.name || "HR Analytics Capstone")}</h3>
       <p>Kick-off ${fmtD(ds.kickoff)} · weekly presentations every <strong>${SCH_DAYS[p.presDay]}</strong> · ${esc(p.time || "")} · ${(p.groups || []).length} groups</p></div>
       ${nx ? `<div class="sch-next"><span>Next</span><strong>${esc(nx.t)}</strong><em>${fmtD(ds[nx.key])}</em></div>` : `<div class="sch-next done"><span>Status</span><strong>Project completed 🎉</strong></div>`}</div>
@@ -2801,7 +2849,7 @@ function renderSchedule() {
   schBind(d, p);
 }
 function schAdminHtml(d, p) {
-  if (!p) return `<div class="card sch-admin"><h3>Create a project</h3><div class="sch-row"><input class="search-input" id="sch-newcode" placeholder="Project code, e.g. HR-OCT26-B1"><button class="btn-blue" id="sch-create">Create project</button></div></div>`;
+  if (!p) return `<div class="card sch-admin"><h3>Create a project</h3><div class="sch-row"><input class="search-input" id="sch-newcode" placeholder="Project code, e.g. P1426"><button class="btn-blue" id="sch-create">Create project</button></div></div>`;
   const k = parseYmd(p.kickoff); const yrs = []; for (let y = new Date().getFullYear() - 1; y <= new Date().getFullYear() + 1; y++) yrs.push(y);
   const dim = new Date(k.getFullYear(), k.getMonth() + 1, 0).getDate();
   const ds = schStageDates(p);
@@ -2837,6 +2885,7 @@ function schBind(d, p) {
   const save = () => { if (p) p.updated = new Date().toISOString(); schSaveDraft(d); renderSchedule(); renderHeroSchedule(); };
   const selEl = $("sch-select");
   if (selEl) selEl.addEventListener("change", () => { if (schIsTrainer()) schEditCode = selEl.value; else lsSet(SCH_VIEW, selEl.value); if (schIsTrainer()) { d.active = selEl.value; schSaveDraft(d); } renderSchedule(); renderHeroSchedule(); });
+  document.querySelectorAll("[data-bcode]").forEach(r => r.addEventListener("click", () => { const c = r.dataset.bcode; if (schIsTrainer()) schEditCode = c; else lsSet(SCH_VIEW, c); renderSchedule(); renderHeroSchedule(); }));
   const un = $("sch-unlock");
   if (un) un.addEventListener("click", () => {
     const pin = prompt("Trainer PIN"); if (pin === null) return;
@@ -2874,7 +2923,7 @@ function schBind(d, p) {
   document.querySelectorAll("[data-gdel]").forEach(b => b.addEventListener("click", () => { if (!confirm("Remove this group?")) return; p.groups = p.groups.filter(g => g.id !== b.dataset.gdel); if (p.status) delete p.status[b.dataset.gdel]; save(); }));
   on("sch-addg", "click", () => { const n = (p.groups || []).length + 1; let id = "g" + n; while (p.groups.some(g => g.id === id)) id += "x"; p.groups.push({ id, name: "Group " + n, members: "" }); save(); });
   on("sch-reset", "click", () => { if (confirm("Reset every group's status to Pending for " + p.code + "?")) { p.status = {}; save(); } });
-  on("sch-newp", "click", () => { const c = (prompt("New project code (e.g. HR-NOV26-B2)") || "").trim(); if (!c) return; if (d.projects.some(x => x.code === c)) { alert("That code already exists."); return; } d.projects.push(schNewProject(c)); schEditCode = c; d.active = c; save(); });
+  on("sch-newp", "click", () => { const c = (prompt("New project code (e.g. P1427)") || "").trim(); if (!c) return; if (d.projects.some(x => x.code === c)) { alert("That code already exists."); return; } d.projects.push(schNewProject(c)); schEditCode = c; d.active = c; save(); });
   on("sch-delp", "click", () => { if (!confirm("Delete project " + p.code + "?")) return; d.projects = d.projects.filter(x => x !== p); schEditCode = null; d.active = d.projects[0] ? d.projects[0].code : ""; save(); });
   on("sch-pin", "click", () => { const a = prompt("New trainer PIN (min 4 characters)"); if (!a || a.length < 4) return; if (prompt("Type the new PIN again") !== a) { alert("PINs don't match."); return; }
     if (SCH_API) { let pin = ""; try { pin = sessionStorage.getItem(SCH_PIN) || ""; } catch (e) {} schApi({ action: "setpin", pin, newPin: a }).then(j => { if (j.ok) { try { sessionStorage.setItem(SCH_PIN, a); } catch (e) {} alert("PIN changed on the server. Use the new PIN from now on."); } else alert(j.error || "Could not change PIN."); }).catch(() => alert("Could not reach the server.")); return; } d.pinHash = schHash(a); save(); alert("PIN changed. Download and upload project-schedule.js so the new PIN applies on the live site."); });
@@ -2913,10 +2962,11 @@ function renderHeroSchedule() {
     c2.onclick = () => switchView("schedule"); c2.style.cursor = "pointer";
   }
   if (c4) {
-    c4.innerHTML = `<div class="hf-lv dark" style="margin-bottom:8px;">PROJECT TIMELINE · ${esc(p.code)}</div>${SCH_STAGES.map(s => { const [ph] = schPhase(ds[s.key]); return `<div class="hf-li ${ph}"><span>${ph === "past" ? "✓" : ph === "next" || ph === "today" ? "●" : "○"}</span><span>${esc(s.t.replace(" Presentation", ""))}</span><small>${fmtD(ds[s.key]).replace(/, \d{4}$/, "")}</small></div>`; }).join("")}<div class="hf-foot"><i class="dot"></i> Weekly every ${SCH_DAYS[p.presDay]}</div>`;
+    c4.innerHTML = `<div class="hf-lv dark" style="margin-bottom:8px;">PROJECT TIMELINE · ${esc(p.code)}</div>${SCH_STAGES.map(s => { const [ph] = schPhase(ds[s.key]); return `<div class="hf-li ${ph} ${nx && nx.key === s.key ? "sch-upnext" : ""}" ${nx && nx.key === s.key ? 'title="Up next"' : ""}><span>${ph === "past" ? "✓" : ph === "next" || ph === "today" ? "●" : "○"}</span><span>${esc(s.t.replace(" Presentation", ""))}</span><small>${fmtD(ds[s.key]).replace(/, \d{4}$/, "")}</small></div>`; }).join("")}<div class="hf-foot"><i class="dot"></i> Weekly every ${SCH_DAYS[p.presDay]}</div>`;
     c4.onclick = () => switchView("schedule"); c4.style.cursor = "pointer";
   }
 }
+window.addEventListener("hub-student", () => { try { renderSchedule(); renderHeroSchedule(); } catch (e) {} });
 document.addEventListener("DOMContentLoaded", () => {
   renderSchedule(); renderHeroSchedule();
   if (schFromHash()) setTimeout(() => switchView("schedule"), 50);
