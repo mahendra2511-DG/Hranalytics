@@ -92,3 +92,5 @@ Sidebar → Dashboards → "Mahendra Dashboard Evaluation Feedback". Students up
 - Optional env: `GROQ_VISION_MODEL` (screenshot model), `GROQ_MODEL` (text model).
 
 Fix (18 Oct): trainer changes made in two tabs or two devices no longer overwrite each other (changes are merged before saving).
+
+- Review also marks where each problem is (on the screenshot, or on the layout read from a Tableau / Power BI file) and suggests a full wireframe that students can download (SVG/PNG) or edit for free in Excalidraw (excalidraw.com).

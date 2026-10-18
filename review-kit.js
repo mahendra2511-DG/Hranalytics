@@ -104,6 +104,21 @@
       const sz = db.querySelector("size");
       return { name: db.getAttribute("name"), story: db.getAttribute("type") === "storyboard", sheets, types, size: sz ? `${sz.getAttribute("maxwidth") || sz.getAttribute("minwidth") || "auto"}x${sz.getAttribute("maxheight") || sz.getAttribute("minheight") || "auto"}` : "automatic" };
     });
+    const layout = (() => {
+      let best = null;
+      all("workbook > dashboards > dashboard").filter(db => db.getAttribute("type") !== "storyboard").forEach(db => {
+        const leaf = all("zone", db).filter(z => !z.closest("devicelayout, devicelayouts") && !z.querySelector("zone"));
+        const boxes = leaf.map(z => {
+          const t = z.getAttribute("type-v2") || z.getAttribute("type") || "", nm = z.getAttribute("name") || "";
+          if (/^layout|^empty$|blank/.test(t)) return null;
+          const kind = !t && nm ? "sheet" : t === "filter" ? "filter" : t === "paramctrl" ? "filter" : /color|size|shape|legend/.test(t) ? "legend" : t === "title" ? "title" : t === "text" ? "text" : t === "bitmap" ? "image" : t || "object";
+          const label = kind === "sheet" ? nm : kind === "filter" ? "Filter: " + field(z.getAttribute("param")) : kind === "title" ? "Dashboard title" : kind === "text" ? "Text box" : kind === "legend" ? "Legend" : kind;
+          return { x: +z.getAttribute("x") / 1000, y: +z.getAttribute("y") / 1000, w: +z.getAttribute("w") / 1000, h: +z.getAttribute("h") / 1000, label, kind };
+        }).filter(b => b && b.w > 0 && b.h > 0);
+        if (!best || boxes.length > best.boxes.length) best = { name: db.getAttribute("name"), boxes, ratio: 16 / 9 };
+      });
+      return best && best.boxes.length ? best : null;
+    })();
     const actions = all("workbook > actions > action").map(a => `${a.getAttribute("caption") || a.getAttribute("name")} (${((a.querySelector("command") || {}).getAttribute ? a.querySelector("command").getAttribute("command") : "") || "action"})`.replace("tsc:", ""));
     const used = new Set(dashboards.flatMap(d => d.sheets));
     const unused = worksheets.filter(w => !used.has(w.name)).map(w => w.name);
@@ -129,7 +144,7 @@
     const lod = calcs.filter(c => /\{\s*(FIXED|INCLUDE|EXCLUDE)/i.test(c.formula)).length; if (lod) facts.push(`${lod} calculated field(s) use LOD expressions.`);
     const auto = dashboards.filter(d => d.size === "automatic").length; if (auto) facts.push(`${auto} dashboard(s) use Automatic size.`);
     return { kind: "tableau", summary: S, facts, names: [...calcs.map(c => c.name + " " + c.formula), ...worksheets.map(w => w.name + " " + w.title), ...dashboards.map(d => d.name)],
-      stats: [["Dashboards", dashboards.length], ["Worksheets", worksheets.length], ["Calculated fields", calcs.length], ["Actions", actions.length]], limits: [] };
+      stats: [["Dashboards", dashboards.length], ["Worksheets", worksheets.length], ["Calculated fields", calcs.length], ["Actions", actions.length]], limits: [], layout };
   }
   async function readTableau(file, ext) {
     if (ext === "twb") return parseTwb(await file.text());
@@ -214,9 +229,9 @@
           const c = J(vc.config, {}); const sv = c.singleVisual || {};
           const sel = ((sv.prototypeQuery || {}).Select || []).map(s => s.NativeReferenceName || s.Name || "").map(s => s.replace(/^[^.]*\./, "")).filter(Boolean);
           const title = lit((((sv.vcObjects || {}).title || [])[0] || {}).properties && sv.vcObjects.title[0].properties.text);
-          return { type: sv.visualType || (c.singleVisualGroup ? "group" : "?"), title, fields: uniq(sel).slice(0, 8), filters: J(vc.filters, []).length };
+          return { type: sv.visualType || (c.singleVisualGroup ? "group" : "?"), title, fields: uniq(sel).slice(0, 8), filters: J(vc.filters, []).length, pos: { x: +vc.x || 0, y: +vc.y || 0, w: +vc.width || 0, h: +vc.height || 0 } };
         }).filter(v => v.type !== "group");
-        pages.push({ name: sec.displayName || sec.name, visuals, filters: J(sec.filters, []).length, size: `${sec.width || "?"}x${sec.height || "?"}` });
+        pages.push({ name: sec.displayName || sec.name, visuals, filters: J(sec.filters, []).length, size: `${sec.width || "?"}x${sec.height || "?"}`, W: +sec.width || 1280, H: +sec.height || 720 });
       });
     } else {
       const pj = z.names.filter(n => /^Report\/definition\/pages\/[^/]+\/page\.json$/.test(n));
@@ -226,9 +241,9 @@
         for (const v of z.names.filter(x => x.startsWith(dir) && /visual\.json$/.test(x)).slice(0, 80)) {
           const V = J(await z.read(v), {}); const vis = V.visual || {};
           const fields = []; JSON.stringify(vis.query || {}).replace(/"Property":"([^"]+)"/g, (_, p) => fields.push(p));
-          visuals.push({ type: vis.visualType || "?", title: lit((((vis.visualContainerObjects || {}).title || [])[0] || {}).properties && vis.visualContainerObjects.title[0].properties.text), fields: uniq(fields).slice(0, 8), filters: 0 });
+          const ps = V.position || {}; visuals.push({ pos: { x: +ps.x || 0, y: +ps.y || 0, w: +ps.width || 0, h: +ps.height || 0 }, type: vis.visualType || "?", title: lit((((vis.visualContainerObjects || {}).title || [])[0] || {}).properties && vis.visualContainerObjects.title[0].properties.text), fields: uniq(fields).slice(0, 8), filters: 0 });
         }
-        pages.push({ name: P.displayName || P.name, visuals, filters: (P.filterConfig && P.filterConfig.filters || []).length, size: `${P.width || "?"}x${P.height || "?"}` });
+        pages.push({ name: P.displayName || P.name, visuals, filters: (P.filterConfig && P.filterConfig.filters || []).length, size: `${P.width || "?"}x${P.height || "?"}`, W: +P.width || 1280, H: +P.height || 720 });
       }
     }
     let model = null; const dms = await u16("DataModelSchema");
@@ -263,7 +278,10 @@
       if (tables.length > 1 && !rels.length) facts.push("Several tables but no relationships.");
     } else limits.push("A .pbix stores DAX measures and relationships in a compressed binary model that cannot be read in the browser. Only pages and visuals were reviewed. For a full review, in Power BI use File → Export → Power BI template and upload the .pbit, or paste your DAX measures in the notes box.");
     return { kind: "powerbi", summary: S, facts, names: [...measures.map(m => m.name + " " + m.expr), ...visuals.map(v => v.title + " " + v.fields.join(" ")), ...pages.map(p => p.name)],
-      stats: [["Pages", pages.length], ["Visuals", visuals.length], ["Measures", model ? measures.length : "n/a"], ["Relationships", model ? rels.length : "n/a"]], limits };
+      stats: [["Pages", pages.length], ["Visuals", visuals.length], ["Measures", model ? measures.length : "n/a"], ["Relationships", model ? rels.length : "n/a"]], limits,
+      layout: (() => { const pg = pages.slice().sort((a, b) => b.visuals.length - a.visuals.length)[0]; if (!pg) return null;
+        const boxes = pg.visuals.filter(v => v.pos && v.pos.w > 0).map(v => ({ x: v.pos.x / pg.W * 100, y: v.pos.y / pg.H * 100, w: v.pos.w / pg.W * 100, h: v.pos.h / pg.H * 100, kind: /slicer/i.test(v.type) ? "filter" : /card|kpi/i.test(v.type) ? "kpi" : /textbox/i.test(v.type) ? "text" : "sheet", label: v.title || v.type }));
+        return boxes.length ? { name: pg.name, boxes, ratio: pg.W / pg.H } : null; })() };
   }
 
   /* ================= screenshot → compressed JPEG ================= */
@@ -311,7 +329,7 @@
   const hist = { all() { try { return JSON.parse(ls.get(SKEY)) || []; } catch (e) { return []; } }, save(a) { ls.set(SKEY, JSON.stringify(a.slice(0, 15))); } };
   function me() { try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (/_student_v1$/.test(k)) { const m = JSON.parse(localStorage.getItem(k)); if (m && m.name) return m; } } } catch (e) {} return null; }
   let state = { main: null, shot: null, busy: false, step: 0, error: "", result: null, ai: null };
-  const STEPS = ["Checking the file", "Reading the workbook", "Running automatic checks", "AI review (10–40 s)", "Done"];
+  const STEPS = ["Checking the file", "Reading the workbook", "Running automatic checks", "AI review (10–40 s)", "Designing a better wireframe", "Done"];
 
   /* ================= render ================= */
   function render() {
@@ -377,16 +395,150 @@
       ${cov ? `<div class="rv-cov"><b>KPI coverage by name: ${cov.found.length} of ${cov.total}</b> project KPIs found in your field / measure / sheet names.${cov.missing.length ? `<div class="rv-mute">Not found by name (may exist under another name): ${esc(cov.missing.slice(0, 25).map(k => k.name).join(", "))}${cov.missing.length > 25 ? "…" : ""}</div>` : ""}</div>` : ""}
       ${r ? `
       ${r.strengths.length ? `<h4>✅ Strengths</h4><ul class="rv-list">${r.strengths.map(s => `<li>${esc(s)}</li>`).join("")}</ul>` : ""}
-      ${r.issues.length ? `<h4>🛠️ Issues (most important first)</h4>${r.issues.map(i => `<div class="rv-issue ${i.severity}"><div class="rv-ih">${sevIc[i.severity]} <b>${esc(i.title)}</b><span class="rv-chip ${i.severity}">${i.severity}</span><span class="rv-chip st-${i.status}">${stLbl[i.status]}</span><span class="rv-chip">${esc((CATS.find(c => c[0] === i.category) || ["", ""])[1])}</span></div>
+      ${problemsHtml(R)}
+      ${r.issues.length ? `<h4>🛠️ Issues (most important first)</h4>${r.issues.map((i, k) => `<div class="rv-issue ${i.severity}"><div class="rv-ih"><span class="rv-pin">${k + 1}</span> ${sevIc[i.severity]} <b>${esc(i.title)}</b><span class="rv-chip ${i.severity}">${i.severity}</span><span class="rv-chip st-${i.status}">${stLbl[i.status]}</span><span class="rv-chip">${esc((CATS.find(c => c[0] === i.category) || ["", ""])[1])}</span></div>
         ${i.evidence ? `<div><em>Evidence:</em> ${esc(i.evidence)}</div>` : ""}${i.impact ? `<div><em>Why it matters:</em> ${esc(i.impact)}</div>` : ""}${i.fix ? `<div><em>Fix:</em> ${esc(i.fix)}</div>` : ""}${i.example ? `<pre class="rv-code">${esc(i.example)}</pre>` : ""}</div>`).join("")}` : ""}
       ${r.missing.length ? `<h4>❓ Missing KPIs / requirements</h4><ul class="rv-list">${r.missing.map(s => `<li>${esc(s)}</li>`).join("")}</ul>` : ""}
       ${r.action_plan.length ? `<h4>📋 Action plan</h4><ol class="rv-list">${r.action_plan.map(s => `<li>${esc(s)}</li>`).join("")}</ol>` : ""}
+      ${wireHtml(R, live)}
       ${r.checklist.length ? `<h4>☑️ Before you resubmit</h4><ul class="rv-check">${r.checklist.map((s, k) => `<li><label><input type="checkbox"> ${esc(s)}</label></li>`).join("")}</ul>` : ""}` : ""}
       ${(R.limits || []).length || (r && r.limitations.length) ? `<h4>ℹ️ Limitations</h4><ul class="rv-list rv-mute">${[...(R.limits || []), ...(r ? r.limitations : [])].map(s => `<li>${esc(s)}</li>`).join("")}</ul>` : ""}
       <p class="rv-mute rv-foot">AI feedback can be wrong. Verified items were proven from your file; "likely" items need your check. Your trainer's evaluation is final.</p>
     </div>`;
   }
-  const RCSS = `body{font-family:Inter,Segoe UI,Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#0F172A;line-height:1.5}h3{margin:4px 0}h4{margin:20px 0 6px}.rv-mute{color:#64748B;font-size:13px}.rv-tag,.rv-chip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:20px;background:#EEF2F7;margin-left:6px}.rv-score{display:flex;gap:18px;align-items:center;margin:14px 0}.rv-dial{width:96px;height:96px;border-radius:50%;border:6px solid #16A34A;display:flex;flex-direction:column;align-items:center;justify-content:center}.rv-dial.a{border-color:#D97706}.rv-dial.r{border-color:#DC2626}.rv-dial b{font-size:30px}.rv-bar{margin:8px 0}.rv-bl{display:flex;justify-content:space-between;font-size:14px}.rv-bt{height:8px;background:#EEF2F7;border-radius:4px}.rv-bt i{display:block;height:100%;background:#1F9E8B;border-radius:4px}.rv-bc{font-size:12.5px;color:#475569}.rv-issue{border:1px solid #E2E8F0;border-left:4px solid #94A3B8;border-radius:8px;padding:10px 12px;margin:8px 0;font-size:13.5px}.rv-issue.critical{border-left-color:#DC2626}.rv-issue.high{border-left-color:#EA580C}.rv-issue.medium{border-left-color:#CA8A04}.rv-issue.low{border-left-color:#2563EB}.rv-code{white-space:pre-wrap;background:#F1F5F9;padding:8px;border-radius:6px;font-size:12px}.rv-stats{display:flex;gap:10px;flex-wrap:wrap}.rv-stats div{border:1px solid #E2E8F0;border-radius:8px;padding:6px 12px;text-align:center}.rv-stats b{display:block;font-size:18px}.rv-stats span{font-size:11.5px;color:#64748B}.rv-d.up{color:#16A34A}.rv-d.dn{color:#DC2626}.rv-acts{display:none}`;
+  /* ================= where the problems are + suggested wireframe ================= */
+  const norm = (t) => String(t || "").toLowerCase().replace(/^filter:\s*/, "").replace(/[^a-z0-9%]+/g, " ").trim();
+  function matchBox(boxes, target) {
+    const t = norm(target); if (!t || t.length < 2) return -1;
+    let best = -1, bl = 0;
+    boxes.forEach((b, i) => { const l = norm(b.label); if (!l) return; if ((l === t || t.includes(l) || l.includes(t)) && l.length > bl) { best = i; bl = l.length; } });
+    return best;
+  }
+  function problemsHtml(R) {
+    const r = R.review; if (!r || !r.issues.length) return "";
+    const nums = (list) => list.map(n => `<span class="rv-pin">${n}</span>`).join("");
+    let vis = "", placed = new Set();
+    if (R.shot && r.issues.some(i => i.region)) {
+      vis = `<div class="rv-shotwrap"><img src="${R.shot}" alt="Your dashboard screenshot">${r.issues.map((i, k) => i.region ? (placed.add(k), `<div class="rv-hot ${i.severity}" style="left:${i.region.x}%;top:${i.region.y}%;width:${i.region.w}%;height:${i.region.h}%"><span class="rv-pin">${k + 1}</span></div>`) : "").join("")}</div>
+        <div class="rv-mute">Boxes are approximate: the AI marks where it sees each problem on your screenshot.</div>`;
+    } else if (R.layout && R.layout.boxes.length) {
+      const L = R.layout, W = 1000, H = Math.round(W / (L.ratio || 16 / 9)); const hits = L.boxes.map(() => []);
+      r.issues.forEach((i, k) => { const b = matchBox(L.boxes, i.target); if (b >= 0) { hits[b].push(k + 1); placed.add(k); } });
+      const col = { filter: "#2563EB", kpi: "#7C3AED", legend: "#64748B", title: "#0F172A", text: "#64748B", sheet: "#475569" };
+      vis = `<svg class="rv-cur" viewBox="0 0 ${W} ${H}" role="img" aria-label="Layout of your dashboard"><rect width="${W}" height="${H}" fill="#fff" stroke="#CBD5E1"/>
+        ${L.boxes.map((b, i) => { const x = b.x / 100 * W, y = b.y / 100 * H, w = Math.max(8, b.w / 100 * W), h = Math.max(8, b.h / 100 * H), bad = hits[i].length;
+          return `<g><rect x="${x + 2}" y="${y + 2}" width="${w - 4}" height="${h - 4}" rx="6" fill="${bad ? "#FEF2F2" : "#F8FAFC"}" stroke="${bad ? "#DC2626" : col[b.kind] || "#94A3B8"}" stroke-width="${bad ? 3 : 1.5}" ${b.kind === "filter" ? 'stroke-dasharray="6 4"' : ""}/>
+          <text x="${x + 10}" y="${y + 22}" font-size="${h < 34 ? 11 : 14}" fill="#0F172A" font-family="Arial">${esc(cut(b.label, Math.max(6, Math.floor(w / 8))))}</text>
+          ${hits[i].map((n, j) => `<g transform="translate(${x + w - 18 - j * 24},${y + 16})"><circle r="11" fill="#DC2626"/><text text-anchor="middle" y="4" font-size="12" font-weight="700" fill="#fff" font-family="Arial">${n}</text></g>`).join("")}</g>`; }).join("")}</svg>
+        <div class="rv-mute">Your dashboard "${esc(L.name)}" as built in the file. Red boxes have problems; numbers match the issues below. Dashed = filters.</div>`;
+    }
+    if (!vis) return "";
+    const general = r.issues.map((i, k) => k).filter(k => !placed.has(k)).map(k => k + 1);
+    return `<h4>📍 Where the problems are on your dashboard</h4>${vis}${general.length ? `<div class="rv-mute">Issues about the whole dashboard or the data model: ${nums(general)}</div>` : ""}`;
+  }
+
+  /* ---- wireframe SVG ---- */
+  const WF = { W: 1200, pad: 16, gap: 12, unit: 66, top: 0 };
+  function wireLayout(page) {
+    const colW = (WF.W - 2 * WF.pad - 11 * WF.gap) / 12; let y = WF.pad, n = 0; const out = [];
+    page.rows.forEach(row => {
+      const h = row.h * WF.unit + (row.h - 1) * WF.gap; let c = 0;
+      row.blocks.forEach(b => { const x = WF.pad + c * (colW + WF.gap), w = b.span * colW + (b.span - 1) * WF.gap; out.push(Object.assign({}, b, { x, y, w, h, n: ++n })); c += b.span; });
+      y += h + WF.gap;
+    });
+    return { blocks: out, H: y + WF.pad - WF.gap };
+  }
+  function mini(b, x, y, w, h) {   // tiny placeholder drawing for each chart type
+    const g = "#CBD5E1", a = "#1F9E8B", t = b.chart; let s = "";
+    const bars = (k, horiz) => { for (let i = 0; i < k; i++) { const v = [0.9, 0.7, 0.55, 0.45, 0.35, 0.28][i % 6]; if (horiz) { const bh = h / k * 0.6; s += `<rect x="${x}" y="${y + i * h / k}" width="${w * v}" height="${bh}" rx="3" fill="${i ? g : a}"/>`; } else { const bw = w / k * 0.6; s += `<rect x="${x + i * w / k}" y="${y + h * (1 - v)}" width="${bw}" height="${h * v}" rx="3" fill="${i === 2 ? a : g}"/>`; } } };
+    if (/^(bar|stacked-bar|bullet)$/.test(t)) bars(5, true);
+    else if (/^(column|histogram|waterfall)$/.test(t)) bars(7, false);
+    else if (/^(line|area|combo)$/.test(t)) { const pts = [0.6, 0.45, 0.55, 0.3, 0.4, 0.2, 0.25].map((v, i) => `${x + i * w / 6},${y + h * v}`).join(" "); if (t === "combo") bars(7, false); s += t === "area" ? `<polygon points="${x},${y + h} ${pts} ${x + w},${y + h}" fill="#CCEFE9"/>` : ""; s += `<polyline points="${pts}" fill="none" stroke="${a}" stroke-width="3"/>`; }
+    else if (/^(pie|donut|gauge)$/.test(t)) { const r = Math.min(w, h) / 2, cx = x + w / 2, cy = y + h / 2; s += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${g}"/><path d="M${cx},${cy} L${cx},${cy - r} A${r},${r} 0 0,1 ${cx + r * 0.95},${cy + r * 0.31} Z" fill="${a}"/>${t !== "pie" ? `<circle cx="${cx}" cy="${cy}" r="${r * 0.55}" fill="#fff"/>` : ""}`; }
+    else if (t === "map") { s += `<path d="M${x + w * .1},${y + h * .5} q${w * .15},-${h * .45} ${w * .4},-${h * .3} t${w * .45},${h * .1} q-${w * .05},${h * .5} -${w * .4},${h * .55} t-${w * .45},-${h * .35}z" fill="${g}"/><circle cx="${x + w * .35}" cy="${y + h * .4}" r="6" fill="${a}"/><circle cx="${x + w * .65}" cy="${y + h * .55}" r="9" fill="${a}"/>`; }
+    else if (t === "scatter") { for (let i = 0; i < 12; i++) s += `<circle cx="${x + ((i * 37) % 100) / 100 * w}" cy="${y + h - ((i * 53) % 100) / 100 * h}" r="4" fill="${i % 4 ? g : a}"/>`; }
+    else if (t === "funnel") { for (let i = 0; i < 4; i++) { const ww = w * (1 - i * 0.2); s += `<rect x="${x + (w - ww) / 2}" y="${y + i * h / 4}" width="${ww}" height="${h / 4 - 4}" fill="${i ? g : a}"/>`; } }
+    else { const cr = Math.max(2, Math.min(6, Math.floor(h / 18))), cc = t === "table" || t === "matrix" ? 4 : 5; for (let i = 0; i < cr; i++) for (let j = 0; j < cc; j++) s += `<rect x="${x + j * w / cc}" y="${y + i * h / cr}" width="${w / cc - 3}" height="${h / cr - 3}" fill="${i === 0 && /table|matrix/.test(t) ? "#94A3B8" : (t === "heatmap" || t === "treemap") && (i + j) % 3 === 0 ? a : "#E2E8F0"}"/>`; }
+    return s;
+  }
+  function wireSvg(page, title) {
+    const L = wireLayout(page); const F = 'font-family="Arial, Helvetica, sans-serif"';
+    const body = L.blocks.map(b => {
+      const { x, y, w, h } = b; let inner = "";
+      const label = (fs, yy) => `<text x="${x + 12}" y="${y + yy}" font-size="${fs}" font-weight="700" fill="#0F172A" ${F}>${esc(cut(b.label, Math.floor(w / (fs * 0.58))))}</text>`;
+      const sub = (yy) => b.fields ? `<text x="${x + 12}" y="${y + yy}" font-size="11" fill="#64748B" ${F}>${esc(cut(b.fields, Math.floor(w / 6.2)))}</text>` : "";
+      if (b.type === "title") inner = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#0F172A"/><text x="${x + 16}" y="${y + Math.min(h / 2 + 8, 40)}" font-size="22" font-weight="700" fill="#fff" ${F}>${esc(cut(b.label, Math.floor(w / 12)))}</text>`;
+      else if (b.type === "filter") inner = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#EFF6FF" stroke="#2563EB" stroke-dasharray="6 4"/><text x="${x + 12}" y="${y + 18}" font-size="10" fill="#2563EB" ${F}>FILTER</text><rect x="${x + 12}" y="${y + 26}" width="${w - 24}" height="${Math.min(30, h - 34)}" rx="6" fill="#fff" stroke="#93C5FD"/><text x="${x + 22}" y="${y + 26 + Math.min(30, h - 34) / 2 + 5}" font-size="13" fill="#0F172A" ${F}>${esc(cut(b.label, Math.floor((w - 50) / 7)))}</text><text x="${x + w - 26}" y="${y + 26 + Math.min(30, h - 34) / 2 + 5}" font-size="12" fill="#2563EB" ${F}>▾</text>`;
+      else if (b.type === "kpi") inner = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="#fff" stroke="#CBD5E1"/><rect x="${x}" y="${y}" width="${w}" height="4" rx="2" fill="#1F9E8B"/><text x="${x + 12}" y="${y + 22}" font-size="11" font-weight="700" fill="#475569" ${F}>${esc(cut(b.label.toUpperCase(), Math.floor(w / 7)))}</text><text x="${x + 12}" y="${y + Math.min(h - 12, 54)}" font-size="${h > 60 ? 26 : 20}" font-weight="700" fill="#94A3B8" ${F}>##.#</text>`;
+      else if (b.type === "text") inner = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#FFFBEB" stroke="#FCD34D"/>${label(13, 22)}${[0, 1, 2].filter(i => 34 + i * 14 < h - 6).map(i => `<rect x="${x + 12}" y="${y + 34 + i * 14}" width="${(w - 24) * (1 - i * 0.2)}" height="6" rx="3" fill="#FDE68A"/>`).join("")}`;
+      else if (b.type === "legend" || b.type === "nav") inner = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#F8FAFC" stroke="#CBD5E1"/>${label(12, 20)}${[0, 1, 2].map(i => `<rect x="${x + 12 + i * Math.min(70, (w - 24) / 3)}" y="${y + 30}" width="${Math.min(60, (w - 36) / 3)}" height="${Math.max(8, Math.min(18, h - 40))}" rx="4" fill="${i ? "#E2E8F0" : "#1F9E8B"}"/>`).join("")}`;
+      else { const top = b.fields ? 44 : 32; inner = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="#fff" stroke="#CBD5E1"/>${label(14, 22)}${sub(37)}${h - top - 14 > 16 ? mini(b, x + 14, y + top, w - 28, h - top - 14) : ""}`; }
+      return `<g>${inner}<g transform="translate(${x + w - 16},${y + 14})"><circle r="11" fill="#7C3AED"/><text text-anchor="middle" y="4" font-size="11" font-weight="700" fill="#fff" ${F}>${b.n}</text></g></g>`;
+    }).join("");
+    return { svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WF.W} ${L.H}" width="${WF.W}" height="${L.H}" role="img" aria-label="${esc(title)}"><rect width="${WF.W}" height="${L.H}" fill="#F1F5F9"/>${body}</svg>`, blocks: L.blocks, H: L.H };
+  }
+  function excalidraw(wire) {
+    const els = []; let seed = 1; let oy = 0;
+    const base = (o) => Object.assign({ id: "e" + (seed++), angle: 0, strokeColor: "#1e1e1e", backgroundColor: "transparent", fillStyle: "solid", strokeWidth: 1, strokeStyle: "solid", roughness: 1, opacity: 100, groupIds: [], frameId: null, roundness: { type: 3 }, seed: seed * 7, version: 1, versionNonce: seed * 13, isDeleted: false, boundElements: null, updated: 1, link: null, locked: false }, o);
+    const txt = (x, y, text, size, color) => base({ type: "text", x, y, width: Math.max(20, text.split("\n").reduce((m, l) => Math.max(m, l.length), 0) * size * 0.55), height: text.split("\n").length * size * 1.25, text, originalText: text, fontSize: size, fontFamily: 2, textAlign: "left", verticalAlign: "top", baseline: size, containerId: null, lineHeight: 1.25, strokeColor: color || "#1e1e1e", roundness: null });
+    wire.pages.forEach(pg => {
+      els.push(txt(0, oy, `${wire.title} · ${pg.name}`, 28)); oy += 50;
+      const L = wireLayout(pg);
+      L.blocks.forEach(b => {
+        const bg = { title: "#1e1e1e", filter: "#dbe4ff", kpi: "#e6fcf5", text: "#fff9db" }[b.type] || "#ffffff";
+        els.push(base({ type: "rectangle", x: b.x, y: oy + b.y, width: b.w, height: b.h, backgroundColor: bg, strokeStyle: b.type === "filter" ? "dashed" : "solid" }));
+        const t = `${b.n}. ${b.label}${b.type === "chart" ? ` (${b.chart})` : b.type !== "title" ? ` [${b.type}]` : ""}${b.fields && b.h > 60 ? "\n" + cut(b.fields, Math.floor(b.w / 8)) : ""}`;
+        els.push(txt(b.x + 10, oy + b.y + 8, t, b.type === "title" ? 22 : 15, b.type === "title" ? "#ffffff" : "#1e1e1e"));
+      });
+      oy += L.H + 60;
+    });
+    return JSON.stringify({ type: "excalidraw", version: 2, source: "https://excalidraw.com", elements: els, appState: { viewBackgroundColor: "#ffffff", gridSize: null }, files: {} });
+  }
+  let wirePage = 0;
+  function wireHtml(R, live) {
+    if (!R.review) return "";
+    if (!R.wire) return `<h4>🧭 Suggested wireframe</h4>${R.wireError ? `<div class="rv-note warn">${esc(R.wireError)}</div>` : ""}${live ? `<button class="btn-outline" id="rv-wire">✨ Suggest a better wireframe</button>` : ""}`;
+    const W = R.wire, pg = W.pages[Math.min(wirePage, W.pages.length - 1)], ws = wireSvg(pg, W.title);
+    return `<h4>🧭 Suggested wireframe: ${esc(W.title)}</h4>
+      <div class="rv-mute">${W.audience ? "For " + esc(W.audience) + " · " : ""}A layout you can build in your tool. Numbers match the build notes below.</div>
+      ${W.pages.length > 1 ? `<div class="rv-wtabs">${W.pages.map((p, i) => `<button type="button" class="${p === pg ? "on" : ""}" data-wpage="${i}">${esc(p.name)}</button>`).join("")}</div>` : ""}
+      ${pg.purpose ? `<p class="rv-mute">${esc(pg.purpose)}</p>` : ""}
+      <div class="rv-wire">${ws.svg}</div>
+      ${live ? `<div class="rv-row"><button class="btn-outline" id="rv-wsvg">⬇️ SVG</button><button class="btn-outline" id="rv-wpng">⬇️ PNG</button><button class="btn-outline" id="rv-wex" title="Download an .excalidraw file and open excalidraw.com (free) to edit it">✏️ Edit in Excalidraw</button><button class="btn-outline" id="rv-wire">🔄 New suggestion</button></div>` : ""}
+      <ol class="rv-wlist">${ws.blocks.filter(b => b.type !== "title").map(b => `<li value="${b.n}"><b>${esc(b.label)}</b> <span class="rv-chip">${esc(b.type === "chart" ? b.chart : b.type)}</span>${b.fields ? ` <span class="rv-mute">${esc(b.fields)}</span>` : ""}${b.why ? `<div>${esc(b.why)}</div>` : ""}${b.build ? `<div class="rv-build">🛠 ${esc(b.build)}</div>` : ""}</li>`).join("")}</ol>
+      ${W.changes.length ? `<h4>🔁 What to change from your current dashboard</h4><ol class="rv-list">${W.changes.map(c => `<li>${esc(c)}</li>`).join("")}</ol>` : ""}
+      ${W.tips.length ? `<h4>💡 Design tips</h4><ul class="rv-list">${W.tips.map(c => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}`;
+  }
+  function saveBlob(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000); }
+  function bindWire() {
+    const R = state.result; if (!R) return;
+    document.querySelectorAll("#rv-root [data-wpage]").forEach(b => b.addEventListener("click", () => { wirePage = +b.dataset.wpage; render(); setTimeout(() => { const w = document.querySelector(".rv-wire"); if (w) w.scrollIntoView({ block: "center" }); }, 30); }));
+    const nm = () => (R.file.replace(/\.[^.]+$/, "").replace(/[^\w-]+/g, "_") || "dashboard") + "-wireframe";
+    const svgNow = () => wireSvg(R.wire.pages[Math.min(wirePage, R.wire.pages.length - 1)], R.wire.title);
+    const s1 = $("rv-wsvg"); if (s1) s1.addEventListener("click", () => saveBlob(new Blob([svgNow().svg], { type: "image/svg+xml" }), nm() + ".svg"));
+    const s2 = $("rv-wpng"); if (s2) s2.addEventListener("click", () => { const w = svgNow(); const img = new Image(); img.onload = () => { const c = document.createElement("canvas"); c.width = WF.W * 2; c.height = w.H * 2; const g = c.getContext("2d"); g.scale(2, 2); g.drawImage(img, 0, 0); c.toBlob(b => saveBlob(b, nm() + ".png"), "image/png"); }; img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(w.svg); });
+    const s3 = $("rv-wex"); if (s3) s3.addEventListener("click", () => { saveBlob(new Blob([excalidraw(R.wire)], { type: "application/json" }), nm() + ".excalidraw"); setTimeout(() => { if (confirm("The .excalidraw file is downloaded.\n\nExcalidraw (free) will open now: click the menu ☰ → Open, and choose the downloaded file. You can then move boxes, rename charts and export.")) window.open("https://excalidraw.com/", "_blank", "noopener"); }, 300); });
+    const s4 = $("rv-wire"); if (s4) s4.addEventListener("click", () => makeWire(R, true));
+  }
+  async function makeWire(R, manual) {
+    if (!R || !R.review || !R.ctx) { if (R && !R.ctx) { R.wireError = "Run the review again to get a wireframe for this older review."; render(); } return; }
+    if (manual) { R.wireError = "⏳ Designing a better wireframe…"; R.wire = null; render(); }
+    let r = null, j = {};
+    try {
+      r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "wireframe", kind: R.kind, summary: R.ctx.summary, layout: R.ctx.layout, project: R.ctx.project,
+        issues: R.review.issues.map((i, k) => `${k + 1}. [${i.severity}] ${i.title}${i.target ? " (on " + i.target + ")" : ""}: ${i.fix}`).join("\n") + (R.review.missing.length ? "\nMissing: " + R.review.missing.join("; ") : "") }) });
+      j = await r.json().catch(() => ({}));
+    } catch (e) { r = null; }
+    if (r && r.ok && j.wireframe) { R.wire = j.wireframe; R.wireError = ""; wirePage = 0; }
+    else R.wireError = (j && j.message) || "The wireframe could not be generated. Click the button to try again.";
+    const a = hist.all(); const k = a.findIndex(h => h.ts === R.ts); if (k >= 0) { a[k] = slim(R); hist.save(a); }
+    if (state.result === R) render();
+  }
+  function slim(R) { const o = Object.assign({}, R); delete o.ctx; if (o.shot && o.shot.length > 260000) delete o.shot; return o; }
+  async function thumb(dataUrl) {
+    return new Promise(ok => { const i = new Image(); i.onload = () => { const sc = Math.min(1, 1000 / i.naturalWidth); const c = document.createElement("canvas"); c.width = Math.round(i.naturalWidth * sc); c.height = Math.round(i.naturalHeight * sc); c.getContext("2d").drawImage(i, 0, 0, c.width, c.height); ok(c.toDataURL("image/jpeg", 0.6)); }; i.onerror = () => ok(null); i.src = dataUrl; });
+  }
+  const RCSS = `body{font-family:Inter,Segoe UI,Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#0F172A;line-height:1.5}h3{margin:4px 0}h4{margin:20px 0 6px}.rv-mute{color:#64748B;font-size:13px}.rv-tag,.rv-chip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:20px;background:#EEF2F7;margin-left:6px}.rv-score{display:flex;gap:18px;align-items:center;margin:14px 0}.rv-dial{width:96px;height:96px;border-radius:50%;border:6px solid #16A34A;display:flex;flex-direction:column;align-items:center;justify-content:center}.rv-dial.a{border-color:#D97706}.rv-dial.r{border-color:#DC2626}.rv-dial b{font-size:30px}.rv-bar{margin:8px 0}.rv-bl{display:flex;justify-content:space-between;font-size:14px}.rv-bt{height:8px;background:#EEF2F7;border-radius:4px}.rv-bt i{display:block;height:100%;background:#1F9E8B;border-radius:4px}.rv-bc{font-size:12.5px;color:#475569}.rv-issue{border:1px solid #E2E8F0;border-left:4px solid #94A3B8;border-radius:8px;padding:10px 12px;margin:8px 0;font-size:13.5px}.rv-issue.critical{border-left-color:#DC2626}.rv-issue.high{border-left-color:#EA580C}.rv-issue.medium{border-left-color:#CA8A04}.rv-issue.low{border-left-color:#2563EB}.rv-code{white-space:pre-wrap;background:#F1F5F9;padding:8px;border-radius:6px;font-size:12px}.rv-stats{display:flex;gap:10px;flex-wrap:wrap}.rv-stats div{border:1px solid #E2E8F0;border-radius:8px;padding:6px 12px;text-align:center}.rv-stats b{display:block;font-size:18px}.rv-stats span{font-size:11.5px;color:#64748B}.rv-d.up{color:#16A34A}.rv-d.dn{color:#DC2626}.rv-acts{display:none}.rv-pin{display:inline-block;min-width:18px;padding:0 5px;border-radius:10px;background:#DC2626;color:#fff;font-size:11px;font-weight:700;text-align:center;margin-right:4px}.rv-shotwrap{position:relative}.rv-shotwrap img{width:100%;display:block}.rv-hot{position:absolute;border:3px solid #DC2626;border-radius:6px}.rv-hot .rv-pin{position:absolute;top:-10px;left:-10px}.rv-cur,.rv-wire svg{width:100%;height:auto}.rv-wlist{padding-left:26px;font-size:13.5px}.rv-wlist li{margin-bottom:6px}.rv-build{font-size:12px;color:#475569}`;
 
   function bind() {
     const pick = (id, inp) => { const d = $(id), i = $(inp); if (!d || !i) return;
@@ -401,6 +553,7 @@
     const go = $("rv-go"); if (go) go.addEventListener("click", run);
     document.querySelectorAll("#rv-root [data-open]").forEach(b => b.addEventListener("click", () => { state.result = hist.all()[+b.dataset.open]; state.error = ""; render(); setTimeout(() => { const o = $("rv-report"); if (o) o.scrollIntoView({ behavior: "smooth" }); }, 50); }));
     document.querySelectorAll("#rv-root [data-del]").forEach(b => b.addEventListener("click", () => { if (!confirm("Delete this review?")) return; const a = hist.all(); const [x] = a.splice(+b.dataset.del, 1); hist.save(a); if (state.result && x && state.result.ts === x.ts) state.result = null; render(); }));
+    bindWire();
     const pr = $("rv-print"); if (pr) pr.addEventListener("click", () => { document.body.classList.add("rv-printing"); window.print(); setTimeout(() => document.body.classList.remove("rv-printing"), 500); });
     const dl = $("rv-dl"); if (dl) dl.addEventListener("click", () => {
       const R = state.result; const html = `<!doctype html><html><head><meta charset="utf-8"><title>Dashboard review · ${esc(R.file)}</title><style>${RCSS}</style></head><body>${reportHtml(R, false)}</body></html>`;
@@ -436,11 +589,14 @@
       const facts = P.facts.slice(); if (coverage) facts.push(`KPI names matched in the file: ${coverage.found.length} of ${coverage.total} project KPIs (simple name matching).`);
       const stu = me();
       const R = { ts: Date.now(), file: main.file.name, kind: main.kind, project: proj.name, student: stu ? [stu.name, stu.group, stu.batch].filter(Boolean).join(" · ") : "", facts, stats: P.stats, limits: P.limits, coverage: coverage ? { found: coverage.found.map(k => ({ name: k.name })), missing: coverage.missing.map(k => ({ name: k.name })), total: coverage.total } : null, review: null };
+      const layoutTxt = P.layout ? `Dashboard "${P.layout.name}": ` + P.layout.boxes.slice(0, 40).map(b => `${b.label} [${b.kind}] at x${Math.round(b.x)} y${Math.round(b.y)} size ${Math.round(b.w)}x${Math.round(b.h)}`).join("; ") : "";
+      R.layout = P.layout || null; R.ctx = { summary: P.summary.slice(0, 6000), layout: layoutTxt, project: { name: proj.name, context: proj.context.slice(0, 5000) } };
+      if (shot) R.shot = await thumb(shot.dataUrl);
       step(3);
       if (state.ai !== false) {
         let r = null, j = {};
         try {
-          r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: main.kind, fileName: main.file.name, summary: P.summary, facts, project: { name: proj.name, context: proj.context }, notes: state.notes || "", image: shot ? shot.dataUrl : undefined, weights: CFG.weights }) });
+          r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: main.kind, fileName: main.file.name, summary: P.summary, facts, layout: layoutTxt, project: { name: proj.name, context: proj.context }, notes: state.notes || "", image: shot ? shot.dataUrl : undefined, weights: CFG.weights }) });
           j = await r.json().catch(() => ({}));
         } catch (e) { r = null; }
         if (r && r.ok && j.review) R.review = j.review;
@@ -448,8 +604,8 @@
       } else R.aiError = "AI review is not switched on for this site yet";
       const prev = R.review ? hist.all().find(h => h.kind === R.kind && h.review) : null;
       if (prev) R.prev = { overall: prev.review.overall, categories: prev.review.categories.map(c => ({ id: c.id, score: c.score })) };
-      if (R.review) { const a = hist.all(); a.unshift(R); hist.save(a); }
-      state.result = R; step(4);
+      if (R.review) { const a = hist.all(); a.unshift(slim(R)); hist.save(a); step(4); wirePage = 0; await makeWire(R, false); }
+      state.result = R; step(5);
     } catch (e) { state.error = e.message || String(e); }
     state.busy = false; render();
     setTimeout(() => { const o = $("rv-report"); if (o) o.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60);
@@ -483,6 +639,13 @@
   .rv-issue{border:1px solid var(--line,#E2E8F0);border-left:4px solid #94A3B8;border-radius:10px;padding:12px 14px;margin:10px 0;font-size:13.5px;line-height:1.5}.rv-issue.critical{border-left-color:#DC2626}.rv-issue.high{border-left-color:#EA580C}.rv-issue.medium{border-left-color:#CA8A04}.rv-issue.low{border-left-color:#2563EB}
   .rv-issue em{font-style:normal;font-weight:600}.rv-ih{margin-bottom:4px}.rv-code{white-space:pre-wrap;background:rgba(15,23,42,.06);padding:8px 10px;border-radius:6px;font-size:12px;margin:6px 0 0;overflow-x:auto}
   .rv-check{list-style:none;padding:0;margin:0;font-size:13.5px}.rv-check li{padding:3px 0}.rv-foot{margin-top:18px}
+  .rv-pin{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:#DC2626;color:#fff;font-size:11.5px;font-weight:700;margin-right:4px;vertical-align:middle}
+  .rv-shotwrap{position:relative;border:1px solid var(--line,#E2E8F0);border-radius:8px;overflow:hidden;margin-bottom:6px}.rv-shotwrap img{display:block;width:100%;height:auto}
+  .rv-hot{position:absolute;border:3px solid #DC2626;border-radius:6px;background:rgba(220,38,38,.08)}.rv-hot.medium{border-color:#CA8A04;background:rgba(202,138,4,.08)}.rv-hot.low{border-color:#2563EB;background:rgba(37,99,235,.06)}.rv-hot .rv-pin{position:absolute;top:-10px;left:-10px}
+  .rv-cur{width:100%;height:auto;display:block;border-radius:8px;margin-bottom:6px}
+  .rv-wire{border:1px solid var(--line,#E2E8F0);border-radius:10px;overflow:auto;background:#F1F5F9;margin:8px 0}.rv-wire svg{display:block;width:100%;min-width:640px;height:auto}
+  .rv-wtabs{display:flex;gap:6px;margin:8px 0}.rv-wtabs button{border:1px solid var(--line,#CBD5E1);background:transparent;border-radius:20px;padding:4px 12px;cursor:pointer;color:inherit;font:inherit;font-size:13px}.rv-wtabs button.on{background:#7C3AED;color:#fff;border-color:#7C3AED}
+  .rv-wlist{padding-left:26px;font-size:13.5px;line-height:1.5;margin:10px 0 0}.rv-wlist li{margin-bottom:8px}.rv-wlist li::marker{color:#7C3AED;font-weight:700}.rv-build{font-size:12.5px;color:var(--ink-muted,#475569);background:rgba(124,58,237,.06);border-radius:6px;padding:3px 8px;margin-top:3px;display:inline-block}
   @media(max-width:600px){.rv-score{flex-direction:column;align-items:flex-start}.rv-report{padding:16px}}
   @media print{body.rv-printing *{visibility:hidden}body.rv-printing #rv-report,body.rv-printing #rv-report *{visibility:visible}body.rv-printing #rv-report{position:absolute;left:0;top:0;width:100%;box-shadow:none;border:0}body.rv-printing .rv-acts{display:none}}`;
   document.head.appendChild(css);
