@@ -370,7 +370,7 @@
       ${r ? `<div class="rv-score"><div class="rv-dial ${band[1]}"><b>${r.overall}</b><span>/100</span></div><div><div class="rv-band ${band[1]}">${band[0]} ${prev ? delta(r.overall, prev.overall) + `<span class="rv-mute"> vs your last ${KIND_LABEL[R.kind]} review (${prev.overall})</span>` : ""}</div>
         <p>${esc(r.summary)}</p><div class="rv-mute">Review confidence: <b>${esc(r.confidence)}</b>${r.confidence_reason ? " · " + esc(r.confidence_reason) : ""}</div></div></div>
       <div class="rv-bars">${r.categories.map(c => { const pc = prev && (prev.categories || []).find(x => x.id === c.id); return `<div class="rv-bar"><div class="rv-bl"><span>${esc(c.name)}</span><b>${c.score}/${c.max}${pc ? " " + delta(c.score, pc.score) : ""}</b></div><div class="rv-bt"><i style="width:${c.max ? Math.round(c.score / c.max * 100) : 0}%"></i></div><div class="rv-bc">${esc(c.comment)}</div></div>`; }).join("")}</div>`
-        : `<div class="rv-note warn">The AI review could not run${R.aiError ? `: ${esc(R.aiError)}` : ""}. The automatic checks below were still done.</div>`}
+        : `<div class="rv-note warn">The AI review could not run${R.aiError ? `: ${esc(R.aiError)}` : ""} The automatic checks below were still done.</div>`}
       <h4>🔎 Automatic checks (done by code — reliable)</h4>
       <div class="rv-stats">${(R.stats || []).map(([k, v]) => `<div><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("")}</div>
       <ul class="rv-facts">${(R.facts || []).map(f => `<li>${esc(f)}</li>`).join("")}</ul>
@@ -444,7 +444,7 @@
           j = await r.json().catch(() => ({}));
         } catch (e) { r = null; }
         if (r && r.ok && j.review) R.review = j.review;
-        else R.aiError = (j && j.message) || (r ? (r.status === 404 ? "the review service is not deployed on this site yet" : "error " + r.status) : "no internet connection");
+        else R.aiError = ((j && j.message) || (r ? (r.status === 404 ? "the review service is not deployed on this site yet" : "error " + r.status) : "no internet connection")) + (j && j.detail ? ` (details: ${j.detail})` : "");
       } else R.aiError = "AI review is not switched on for this site yet";
       const prev = R.review ? hist.all().find(h => h.kind === R.kind && h.review) : null;
       if (prev) R.prev = { overall: prev.review.overall, categories: prev.review.categories.map(c => ({ id: c.id, score: c.score })) };

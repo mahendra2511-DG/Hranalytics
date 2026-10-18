@@ -2,7 +2,7 @@
  * Mahendra Dashboard Evaluation Feedback — AI review of a student's dashboard (Vercel serverless function), URL: /api/review
  *
  * Uses the same free Groq key as the chat: Vercel → Settings → Environment Variables → GROQ_API_KEY.
- * Optional: GROQ_MODEL (text model), GROQ_VISION_MODEL (model that accepts images).
+ * Optional: GROQ_MODEL (text model), GROQ_VISION_MODEL (model that accepts images). Models are picked in api/_groq.js.
  *
  * The student's file is never uploaded here. The browser opens it, extracts a text summary of its structure
  * (sheets, calculated fields / measures / formulas, filters, visuals, relationships — no data rows) and, if the
@@ -11,8 +11,7 @@
  *   GET  /api/review  → {ok, configured}
  *   POST {kind, fileName, summary, facts[], project{name,context}, notes, image?, weights{}} → {review, model}
  */
-const TEXT_MODELS = ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "meta-llama/llama-4-scout-17b-16e-instruct"];
-const VISION_MODELS = ["meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct"];
+const { candidates, chat } = require("./_groq");
 const PER_IP = 6, WINDOW_MS = 30 * 60 * 1000;          // 6 reviews / 30 minutes per student (per server instance)
 const CATS = [
   ["visual", "Visual design, readability, layout & accessibility"],
@@ -93,16 +92,6 @@ function normalize(j, weights) {
   };
 }
 
-async function callGroq(key, model, messages) {
-  const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 50000);
-  try {
-    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST", signal: ac.signal, headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages, temperature: 0.2, max_tokens: 3000, response_format: { type: "json_object" } }),
-    });
-    return { status: r.status, j: await r.json().catch(() => ({})) };
-  } finally { clearTimeout(t); }
-}
 function parseJson(txt) {
   if (!txt) return null; let s = String(txt).trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
   try { return JSON.parse(s); } catch (e) {}
@@ -145,23 +134,30 @@ ${summary || "(only a screenshot was provided)"}
 STUDENT'S NOTE: ${clip(b.notes, 1500) || "(none)"}`;
   const sys = systemPrompt(weights, !!image, kind === "image" ? "dashboard (screenshot only)" : kind);
   const messages = [{ role: "system", content: sys }, { role: "user", content: image ? [{ type: "text", text: user }, { type: "image_url", image_url: { url: image } }] : user }];
-  const models = image ? (process.env.GROQ_VISION_MODEL ? [process.env.GROQ_VISION_MODEL] : []).concat(VISION_MODELS)
-    : (process.env.GROQ_MODEL ? [process.env.GROQ_MODEL] : []).concat(TEXT_MODELS);
-
-  let last = null;
-  for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      let r; try { r = await callGroq(key, model, messages); } catch (e) { last = { status: 504 }; break; }
+  const tried = [];
+  async function attempt(msgs, vision) {
+    let last = null;
+    for (const model of await candidates(key, vision)) {
+      const r = await chat(key, model, { messages: msgs, temperature: 0.2, max_tokens: 4000, response_format: { type: "json_object" } }, 55000);
+      tried.push(model + " → " + (r.status === 200 ? (r.content ? "ok" : "empty") : r.status + (r.error ? " " + r.error.slice(0, 80) : "")));
+      if (r.status === 401) return { fatal: { error: "bad_key", message: "The GROQ_API_KEY in Vercel is not valid." } };
       last = r;
-      if (r.status === 401) return res.status(502).json({ error: "bad_key", message: "The GROQ_API_KEY in Vercel is not valid." });
-      if (r.status !== 200) break;                                // model retired / limit / hiccup → next model
-      const txt = r.j && r.j.choices && r.j.choices[0] && r.j.choices[0].message && r.j.choices[0].message.content;
-      const j = parseJson(txt);
-      if (j && Array.isArray(j.categories)) return res.status(200).json({ review: normalize(j, weights), model, weights });
+      const j = r.status === 200 ? parseJson(r.content) : null;
+      if (j && Array.isArray(j.categories)) return { review: normalize(j, weights), model };
     }
+    return { last };
   }
-  const busy = last && last.status === 429;
-  const tooBig = last && last.status === 413;
-  return res.status(busy ? 429 : 502).json({ error: busy ? "limit" : "upstream",
-    message: busy ? "The free AI limit is used up for the moment. Please try again in a few minutes." : tooBig ? "The workbook summary was too large for the AI. Try a smaller file or a screenshot." : "The AI service did not return a review. Please try again." });
+  let out = await attempt(messages, !!image);
+  let note = "";
+  if (!out.review && !out.fatal && image && summary) {     // no image model answered: review the workbook text alone
+    out = await attempt([{ role: "system", content: systemPrompt(weights, false, kind) }, { role: "user", content: user }], false);
+    note = "The screenshot could not be analysed (no image model available right now), so visual design was judged from the workbook structure only.";
+  }
+  if (out.fatal) return res.status(502).json(out.fatal);
+  if (out.review) { if (note) out.review.limitations.unshift(note); return res.status(200).json({ review: out.review, model: out.model, weights }); }
+  const busy = out.last && out.last.status === 429;
+  return res.status(busy ? 429 : 502).json({ error: busy ? "limit" : "upstream", detail: tried.join(" | ").slice(0, 600),
+    message: busy ? "The free AI limit is used up for the moment. Please try again in a few minutes."
+      : !summary && image ? "Screenshot-only review is not available right now (no image model answered). Upload your workbook file (.twbx / .pbix / .xlsx) for a review."
+      : "The AI service did not return a review. Please try again." });
 };
