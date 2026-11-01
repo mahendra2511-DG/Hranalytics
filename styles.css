@@ -2431,3 +2431,8 @@ body.dark-mode .sch-publish { background: #0F2A1E; border-color: #14532D; }
 .sch-live { color: #137A6A !important; font-weight: 600; }
 .sch-sync { font-size: 13px; margin: 0 0 12px; padding: 8px 12px; border-radius: 10px; background: #F0FAF7; border: 1px solid #BFE6DD; color: #137A6A; }
 body.dark-mode .sch-sync { background: #0F2A1E; border-color: #14532D; color: #4ADE80; }
+
+/* ---------- Proxima brand block on the light (default) theme ---------- */
+body:not(.dark-mode) .brand-name { color: #0B1B33; }
+body:not(.dark-mode) .brand-sub { color: #3B5573; }
+body:not(.dark-mode) .brand-tag { color: #6B7A8C; }

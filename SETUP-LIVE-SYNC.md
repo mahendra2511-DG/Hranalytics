@@ -32,7 +32,7 @@ Project → **Deployments** → sabse upar wale ke **⋯** → **Redeploy**.
 ## Security
 - PIN server par check hota hai. Students ke paas na PIN hai na database key, isliye wo kuch badal/reset nahi kar sakte.
 - 8 galat PIN 15 minute me → 15 minute ke liye login band (guessing se bachav).
-- PIN bhool gaye? Vercel → Settings → Environment Variables me `ADMIN_PIN` = naya PIN daalo, phir Storage → Upstash → Data Browser me key `shodwe:hosp:pinhash` delete karo → Redeploy.
+- PIN bhool gaye? Vercel → Settings → Environment Variables me `ADMIN_PIN` = naya PIN daalo, phir Storage → Upstash → Data Browser me key `proxima:hr:pinhash` delete karo → Redeploy.
 
 ## Optional
 - Shuruaati PIN alag chahiye to Vercel → Settings → Environment Variables → `ADMIN_PIN` add karo .
