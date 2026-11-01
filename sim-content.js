@@ -1,739 +1,787 @@
 /* Job Simulator content: every number comes from this project's own answer keys and gotchas. */
 window.SIM_CONTENT = {
- "site": "Proxima Business Services · HR Analytics",
+ "site": "ShodweStay Hospitality Analytics",
  "intro": {
-  "incident": "A stakeholder has found a number that looks wrong and needs a decision today. Pick the evidence that matters, name the root cause and choose the fix.",
-  "broken": "A junior analyst built the CY2025 workforce dashboard for the leadership review. Flag every number you would not present, then check the chart.",
-  "stakeholder": "HR and Finance leaders often ask for a dashboard in one vague line. Choose the clarifying questions that define the decision, metric, period, scope and rules before you build."
+  "incident": "Real alerts from Shodwe Group revenue, guest-experience and finance leaders, each built on a trap this project teaches. Check the evidence, pick the root cause and the fix, then write the reply you would send.",
+  "broken": "A junior analyst built this Booking & Occupancy Overview from fact_bookings and the mart view. Find every tile that uses a wrong formula, table or denominator before it reaches leadership.",
+  "stakeholder": "Shodwe stakeholders rarely ask precise questions. Pick the clarifying questions that turn a vague request into a clear KPI spec, and skip the ones that waste their time."
  },
  "incidents": [
   {
    "id": "i1",
    "lvl": "Easy",
-   "title": "“Headcount is 1,312, HRMS says 1,338”",
-   "from": "Raghav Malhotra · Finance Head",
+   "title": "“Guests rate us only 1.52 out of 5!”",
+   "from": "Meera Krishnan · Head of Guest Experience",
    "time": "Mon 9:20 AM",
-   "msg": "Your Power BI card shows 1,312 employees on 31-Dec-2025. The HRMS report says 1,338. I'm building next year's salary budget on this. Which number is right?",
+   "msg": "The guest report says our average rating is 1.52 out of 5. That's a disaster. Should I call an emergency meeting with all 25 hotel GMs?",
    "metric": [
     [
-     "Headcount on the dashboard",
-     "1,312"
-    ],
-    [
-     "Headcount in HRMS",
-     "1,338"
+     "Average rating on the report",
+     "1.52 / 5"
     ]
    ],
    "evidence": [
     {
      "id": "e1",
      "rel": true,
-     "t": "Employees by EmploymentStatus",
-     "sql": "SELECT EmploymentStatus, COUNT(*)\nFROM Employees\nGROUP BY EmploymentStatus;",
+     "t": "AVG vs blanks counted as 0",
+     "sql": "SELECT ROUND(AVG(ratings_given), 2)                          AS avg_rated,\n       ROUND(SUM(COALESCE(ratings_given, 0)) / COUNT(*), 2)    AS avg_blanks_as_0\nFROM fact_bookings;",
      "res": [
       [
-       "Active",
-       "1,312"
+       "avg_rated",
+       "3.62"
       ],
       [
-       "Serving Notice",
-       "26"
+       "avg_blanks_as_0",
+       "≈ 1.52"
       ],
       [
-       "Exited",
-       "961"
+       "rated bookings",
+       "56,683"
       ],
       [
-       "Total",
-       "2,299"
+       "all bookings",
+       "134,590"
       ]
      ],
-     "note": "1,338 − 1,312 = 26, exactly the Serving Notice group."
+     "note": "AVG skips blanks and gives 3.62. The report filled blanks with 0 and divided by all 134,590 bookings, which gives about 1.52."
     },
     {
      "id": "e2",
      "rel": true,
-     "t": "Headcount rule on 31-Dec-2025",
-     "sql": "SET @d = '2025-12-31';\nSELECT COUNT(*) AS headcount\nFROM Employees\nWHERE HireDate <= @d\n  AND (ExitDate IS NULL OR ExitDate > @d);",
+     "t": "Who can leave a rating?",
+     "sql": "SELECT booking_status, COUNT(*) AS bookings, COUNT(ratings_given) AS rated\nFROM fact_bookings GROUP BY booking_status;",
      "res": [
       [
-       "headcount",
-       "1,338"
+       "Checked Out",
+       "94,411"
       ],
       [
-       "Active + Serving Notice",
-       "1,312 + 26"
+       "Cancelled",
+       "33,420"
+      ],
+      [
+       "No Show",
+       "6,759"
+      ],
+      [
+       "rated (Checked Out only)",
+       "56,683"
       ]
      ],
-     "note": "The HireDate / ExitDate rule keeps everyone who is still on the rolls on that date."
+     "note": "40,179 cancelled and no-show bookings never stayed, so they can never have a rating. Treating them as 0 stars is wrong."
     },
     {
      "id": "e3",
      "rel": true,
-     "t": "Exit_Details by ExitStatus",
-     "sql": "SELECT ExitStatus, COUNT(*)\nFROM Exit_Details\nGROUP BY ExitStatus;",
+     "t": "Rating coverage",
+     "sql": "SELECT ROUND(100 * COUNT(ratings_given) / COUNT(*), 1) AS coverage_pct,\n       SUM(booking_status = 'Checked Out' AND ratings_given IS NULL) AS unrated_stays\nFROM fact_bookings;",
      "res": [
       [
-       "Exited",
-       "961"
+       "coverage_pct",
+       "42.1%"
       ],
       [
-       "Serving Notice",
-       "26 (last working day in 2026)"
+       "unrated_stays",
+       "37,728"
       ]
      ],
-     "note": "The 26 resigned in 2025 but are still working. They are on the rolls until their last day."
+     "note": "Only 42.1% of bookings have a rating. Even 37,728 completed stays (40.0%) left no rating, so coverage must be shown next to the score."
     },
     {
      "id": "e4",
      "rel": false,
-     "t": "New hires per month, 2025",
-     "sql": "SELECT MONTH(HireDate), COUNT(*) FROM Employees\nWHERE YEAR(HireDate) = 2025 GROUP BY 1;",
+     "t": "Revenue by city",
+     "sql": "SELECT h.city, SUM(b.revenue_realized) FROM fact_bookings b\nJOIN dim_hotels h ON h.property_id = b.property_id GROUP BY h.city;",
      "res": [
       [
-       "total 2025 hires",
-       "252"
+       "Mumbai",
+       "39.1%"
       ],
       [
-       "pattern",
-       "11 to 34 a month, no spike"
+       "Bangalore",
+       "24.6%"
+      ],
+      [
+       "Hyderabad",
+       "19.0%"
+      ],
+      [
+       "Delhi",
+       "17.2%"
       ]
      ],
-     "note": "Hiring was normal. It doesn't explain a gap of 26."
+     "note": "Useful for the city page, but revenue share says nothing about the rating."
     }
    ],
    "causes": [
     [
      "c1",
-     "HRMS double-counts some employees"
+     "Guests really are very unhappy with every hotel"
     ],
     [
      "c2",
-     "26 new joiners were not loaded into Power BI"
-    ],
-    [
-     "c3",
-     "The measure filters EmploymentStatus = 'Active', so the 26 Serving Notice employees, who are still on the rolls, were dropped",
+     "Blank ratings were treated as 0 and the average was taken over all bookings, including cancelled and no-show bookings that can never be rated",
      true
     ],
     [
+     "c3",
+     "The rating scale was changed from 5 to 10"
+    ],
+    [
      "c4",
-     "Contract employees were excluded"
+     "Some hotels are missing from dim_hotels"
     ],
     [
      "c5",
-     "The dataset was not refreshed"
+     "Ratings were entered twice for some guests"
     ]
    ],
    "fixes": [
     [
      "f1",
-     "Rewrite the measure with the headcount rule (HireDate ≤ date AND ExitDate blank or after the date) → 1,338, and add a QA test that SQL and Power BI match",
+     "Use AVG(ratings_given) over rated stays only = 3.62, and show coverage next to it (56,683 rated, 42.1% of bookings)",
      true
     ],
     [
      "f2",
-     "Hard-code 1,338 into the card"
+     "Fill every blank rating with 3 so the average looks normal"
     ],
     [
      "f3",
-     "Tell Finance the HRMS report is wrong"
+     "Delete all bookings that have no rating"
     ],
     [
      "f4",
-     "Add 26 to the measure as a manual adjustment"
+     "Stop showing the rating on the dashboard"
     ]
    ],
-   "answer": "Root cause: the card counted only EmploymentStatus = 'Active' (1,312) and dropped the 26 Serving Notice employees, who resigned but are still working. Using the HireDate / ExitDate rule, headcount on 31-Dec-2025 is <b>1,338</b>.",
-   "tell": "“Use 1,338. Our card only counted 'Active' status and missed 26 people who are serving notice but are still on payroll. I've fixed the measure so it uses joining and exit dates, and it now matches HRMS.”"
+   "answer": "Root cause: blanks were counted as 0 stars, and 40,179 cancelled or no-show bookings that can never be rated were in the denominator. Average over rated stays is <b>3.62 / 5</b>, based on 56,683 ratings (42.1% coverage).",
+   "tell": "“No emergency. The 1.52 counted every booking without a rating as zero stars, even guests who never stayed. Guests who rated us give 3.62 out of 5. The real worry is that only 42% of bookings have a rating, so let's push post-checkout feedback.”"
   },
   {
    "id": "i2",
    "lvl": "Easy",
-   "title": "“Our attrition is only 7.6%”",
-   "from": "Sanjay Kulkarni · VP Operations",
+   "title": "“‘Others’ is our best channel”",
+   "from": "Vikram Malhotra · Head of Distribution",
    "time": "Tue 11:05 AM",
-   "msg": "My team calculated 2025 attrition as 7.6%. That's well below the Indian IT range of 12–18%. I want to show this in the quarterly review. Can you confirm it?",
+   "msg": "The channel report says 'others' brings 40.9% of our bookings, twice makeyourtrip. I want to cut OTA commission budgets and put the money into 'others'. Can you confirm?",
    "metric": [
     [
-     "Attrition reported by the team",
-     "7.6%"
+     "'others' share of bookings",
+     "40.9%"
+    ],
+    [
+     "makeyourtrip share",
+     "20.0%"
     ]
    ],
    "evidence": [
     {
      "id": "e1",
      "rel": true,
-     "t": "What the team divided by",
-     "sql": "SELECT COUNT(*) FROM Employees;   -- the team's denominator",
+     "t": "Bookings by booking_platform",
+     "sql": "SELECT booking_platform, COUNT(*) AS bookings,\n       ROUND(100 * COUNT(*) / SUM(COUNT(*)) OVER (), 1) AS share_pct\nFROM fact_bookings GROUP BY booking_platform ORDER BY bookings DESC;",
      "res": [
       [
-       "rows in Employees",
-       "2,299"
+       "others",
+       "55,066 (40.9%)"
       ],
       [
-       "175 ÷ 2,299",
-       "7.6%"
+       "makeyourtrip",
+       "26,898 (20.0%)"
+      ],
+      [
+       "logtrip",
+       "14,756 (11.0%)"
+      ],
+      [
+       "direct online",
+       "13,379 (9.9%)"
+      ],
+      [
+       "tripster",
+       "9,630 (7.2%)"
       ]
      ],
-     "note": "Employees holds everyone on the rolls at any time since 01-Jan-2021, including 961 people who have already left."
+     "note": "'others' is the single biggest value, but it isn't the name of any channel."
     },
     {
      "id": "e2",
      "rel": true,
-     "t": "Opening and closing headcount, 2025",
-     "sql": "-- headcount rule on 31-Dec-2024 and on 31-Dec-2025\nSELECT SUM(HireDate <= '2024-12-31' AND (ExitDate IS NULL OR ExitDate > '2024-12-31')) AS opening_hc,\n       SUM(HireDate <= '2025-12-31' AND (ExitDate IS NULL OR ExitDate > '2025-12-31')) AS closing_hc\nFROM Employees;",
+     "t": "Named platforms combined",
+     "sql": "SELECT SUM(booking_platform IN ('makeyourtrip','logtrip','direct online','tripster')) AS named_four,\n       SUM(booking_platform = 'others') AS others\nFROM fact_bookings;",
      "res": [
       [
-       "opening_hc",
-       "1,261"
+       "named_four",
+       "64,663"
       ],
       [
-       "closing_hc",
-       "1,338"
-      ],
-      [
-       "average headcount",
-       "1,299.5"
+       "others",
+       "55,066"
       ]
      ],
-     "note": "The people who could have left during 2025 are around 1,300, not 2,299."
+     "note": "The four named platforms together bring more bookings than 'others'."
     },
     {
      "id": "e3",
      "rel": true,
-     "t": "Attrition trend by year",
-     "sql": "-- exits ÷ average headcount, per calendar year",
+     "t": "Data-quality note on booking_platform",
+     "sql": "-- Data Quality notes → fact_bookings.booking_platform",
      "res": [
       [
-       "2023",
-       "17.5%"
+       "'others'",
+       "unnamed bucket, not a real channel"
       ],
       [
-       "2024",
-       "12.2%"
-      ],
-      [
-       "2025 (team's number)",
-       "7.6%"
+       "action",
+       "check the source mapping first"
       ]
      ],
-     "note": "7.6% would be far below every earlier year, even though 2025 had more exits (175) than 2024 (150)."
+     "note": "'others' can hold several channels, including OTAs. It is a tagging gap to flag, not a channel insight."
     },
     {
      "id": "e4",
      "rel": false,
-     "t": "Top voluntary exit reasons, 2025",
-     "sql": "SELECT ExitReason, COUNT(*) FROM Exit_Details\nWHERE ExitType = 'Voluntary' AND ExitStatus = 'Exited'\n  AND YEAR(LastWorkingDate) = 2025\nGROUP BY ExitReason ORDER BY 2 DESC LIMIT 3;",
+     "t": "Booking % by room class",
+     "sql": "SELECT r.room_class, COUNT(*) FROM fact_bookings b\nJOIN dim_rooms r ON r.room_id = b.room_category GROUP BY r.room_class;",
      "res": [
       [
-       "Better Compensation",
-       "38"
+       "Elite",
+       "36.8%"
       ],
       [
-       "Career Growth / Promotion",
-       "26"
+       "Standard",
+       "28.6%"
       ],
       [
-       "Personal / Family Reasons",
-       "20"
+       "Premium",
+       "22.7%"
+      ],
+      [
+       "Presidential",
+       "11.9%"
       ]
      ],
-     "note": "Useful for the 'why', but it doesn't change the rate."
+     "note": "Room mix is interesting, but it doesn't tell us which channel works."
     }
    ],
    "causes": [
     [
      "c1",
-     "Many exits were not recorded in Exit_Details"
+     "'others' is a hidden direct channel that guests prefer"
     ],
     [
      "c2",
-     "Involuntary exits were left out"
+     "OTAs stopped sending bookings in July"
     ],
     [
      "c3",
-     "The denominator was every employee ever in the table (2,299) instead of the average headcount for 2025",
+     "'others' is an unnamed catch-all value in booking_platform, so it is a data-tagging gap, not a channel that can be funded",
      true
     ],
     [
      "c4",
-     "Serving Notice employees were counted as exits"
+     "makeyourtrip bookings were counted twice"
     ],
     [
      "c5",
-     "Attrition really fell sharply in 2025"
+     "The share was calculated without ALL() in the denominator"
     ]
    ],
    "fixes": [
     [
      "f1",
-     "Exits ÷ average headcount: 175 ÷ ((1,261 + 1,338) ÷ 2) = 175 ÷ 1,299.5 = 13.5%, and write the definition on the KPI card",
+     "Label 'others' as 'Unidentified platform (40.9%)', add a data-quality note, and ask the source owners to map it to real channels before any budget decision",
      true
     ],
     [
      "f2",
-     "Divide by closing headcount 1,338 instead"
+     "Move all OTA budget to 'others' as asked"
     ],
     [
      "f3",
-     "Divide exits by new hires"
+     "Delete the 55,066 'others' bookings from the dashboard"
     ],
     [
      "f4",
-     "Keep 7.6% because leadership will like it"
+     "Merge 'others' into direct online"
     ]
    ],
-   "answer": "Root cause: wrong denominator. 175 exits were divided by all 2,299 employees ever in the table. The correct base is average headcount (1,261 + 1,338) ÷ 2 = 1,299.5, so 2025 attrition is <b>13.5%</b>.",
-   "tell": "“The real figure is 13.5%, not 7.6%. The team divided by everyone who has worked here since 2021, including people who left years ago. 13.5% is still inside the Indian IT range, but it's up from 12.2% in 2024.”"
+   "answer": "Root cause: 'others' is an unnamed bucket, not a channel. It holds 55,066 bookings (40.9%), but the four named platforms together bring <b>64,663</b>. Fix the tagging first, then decide on budgets.",
+   "tell": "“'Others' isn't a channel we can pay or grow. It's bookings with no platform name, and it may include OTAs. Let's get the source team to map it before we move any money. Meanwhile, direct online at 9.9% is the clean lever to grow.”"
   },
   {
    "id": "i3",
    "lvl": "Medium",
-   "title": "“Did we pay salaries twice in June?”",
-   "from": "Meera Iyer · CFO",
-   "time": "Wed 3:40 PM",
-   "msg": "The payroll dashboard shows June 2025 employer cost at ₹31.36 Cr. Every other month is between ₹14.12 Cr and ₹16.52 Cr. Did the payroll vendor pay everyone twice?",
+   "title": "“Luxury earns more, so renovate Luxury”",
+   "from": "Arvind Menon · CFO",
+   "time": "Wed 10:40 AM",
+   "msg": "The category chart shows Luxury hotels earned $1,052.8M and Business only $656.0M. I plan to put the whole renovation budget into Luxury. Any reason not to sign this today?",
    "metric": [
     [
-     "June 2025 employer cost",
-     "₹31.36 Cr"
+     "Luxury revenue",
+     "$1,052.8M"
     ],
     [
-     "Other months",
-     "₹14.12–16.52 Cr"
+     "Business revenue",
+     "$656.0M"
     ]
    ],
    "evidence": [
     {
      "id": "e1",
      "rel": true,
-     "t": "Employer cost by month, 2025",
-     "sql": "SELECT PayMonth, ROUND(SUM(TotalEmployerCost) / 1e7, 2) AS cost_cr\nFROM Payroll_Monthly\nWHERE YEAR(PayMonth) = 2025\nGROUP BY PayMonth;",
+     "t": "Hotels per category",
+     "sql": "SELECT category, COUNT(*) AS hotels\nFROM dim_hotels GROUP BY category;",
      "res": [
       [
-       "Apr",
-       "₹15.12 Cr"
+       "Luxury",
+       "16"
       ],
       [
-       "May",
-       "₹14.34 Cr"
+       "Business",
+       "9"
       ],
       [
-       "Jun",
-       "₹31.36 Cr"
-      ],
-      [
-       "Jul",
-       "₹16.52 Cr"
-      ],
-      [
-       "Aug",
-       "₹15.53 Cr"
+       "Total",
+       "25"
       ]
      ],
-     "note": "Only June jumps. July is already back to normal, and a little higher than before April."
+     "note": "Luxury has 16 hotels and Business only 9, so category totals are not a fair comparison."
     },
     {
      "id": "e2",
      "rel": true,
-     "t": "Data dictionary: Payroll_Monthly",
-     "sql": "-- Data Dictionary → Payroll_Monthly",
+     "t": "Revenue per hotel by category",
+     "sql": "SELECT h.category, COUNT(DISTINCT h.property_id) AS hotels,\n       SUM(b.revenue_realized) AS revenue,\n       ROUND(SUM(b.revenue_realized) / COUNT(DISTINCT h.property_id)) AS revenue_per_hotel\nFROM fact_bookings b JOIN dim_hotels h ON h.property_id = b.property_id\nGROUP BY h.category;",
      "res": [
       [
-       "BonusType",
-       "Annual Performance Bonus (June)"
+       "Luxury revenue",
+       "$1,052.8M"
       ],
       [
-       "Arrears",
-       "Increment arrears for Apr-May paid in June"
+       "Luxury per hotel",
+       "$65.8M"
+      ],
+      [
+       "Business revenue",
+       "$656.0M"
+      ],
+      [
+       "Business per hotel",
+       "$72.9M"
       ]
      ],
-     "note": "Increments are effective 1-April but paid in June, together with the April–May arrears and the annual bonus."
+     "note": "Per hotel, a Business property earns more than a Luxury one."
     },
     {
      "id": "e3",
      "rel": true,
-     "t": "Duplicate payroll rows",
-     "sql": "SELECT EmployeeID, PayMonth, COUNT(*)\nFROM Payroll_Monthly\nGROUP BY EmployeeID, PayMonth\nHAVING COUNT(*) > 1;",
+     "t": "Revenue definition check",
+     "sql": "SELECT SUM(revenue_realized) AS revenue FROM fact_bookings;  -- 1,708,771,229",
      "res": [
       [
-       "Payroll_Monthly rows",
-       "45,807"
+       "revenue_realized total",
+       "$1,708,771,229"
       ],
       [
-       "duplicate (EmployeeID, PayMonth) rows",
-       "0"
+       "Luxury + Business",
+       "$1,052.8M + $656.0M"
       ]
      ],
-     "note": "No employee has two payroll rows for the same month, so nobody was paid twice."
+     "note": "Both category figures use revenue_realized and add up to the group total, so the totals are right. Only the comparison is unfair."
     },
     {
      "id": "e4",
      "rel": false,
-     "t": "New hires per month, 2025",
-     "sql": "SELECT MONTH(HireDate), COUNT(*) FROM Employees\nWHERE YEAR(HireDate) = 2025 GROUP BY 1;",
+     "t": "Booking % by room class",
+     "sql": "SELECT r.room_class, COUNT(*) FROM fact_bookings b\nJOIN dim_rooms r ON r.room_id = b.room_category GROUP BY r.room_class;",
      "res": [
       [
-       "May",
-       "17"
+       "Elite",
+       "36.8%"
       ],
       [
-       "Jun",
-       "21"
+       "Standard",
+       "28.6%"
       ],
       [
-       "Jul",
-       "34"
+       "Premium",
+       "22.7%"
+      ],
+      [
+       "Presidential",
+       "11.9%"
       ]
      ],
-     "note": "June hiring was normal. It doesn't explain a doubled cost."
+     "note": "Room mix is useful for pricing, but it does not compare the two hotel categories."
     }
    ],
    "causes": [
     [
      "c1",
-     "The payroll vendor paid every employee twice"
+     "Luxury hotels charge higher prices, so they are the better investment"
     ],
     [
      "c2",
-     "Headcount doubled in June"
+     "Business revenue is missing cancelled bookings"
     ],
     [
      "c3",
-     "June carries the annual performance bonus plus April–May increment arrears, because increments effective 1-April are paid in June",
+     "The chart compares category totals, but Luxury has 16 hotels and Business only 9. Per hotel, Business earns more",
      true
     ],
     [
      "c4",
-     "Serving Notice employees were paid their full and final settlement in June"
+     "Luxury revenue was summed from revenue_generated"
     ],
     [
      "c5",
-     "The June file was loaded twice"
+     "Some Business hotels are mapped to the wrong city"
     ]
    ],
    "fixes": [
     [
      "f1",
-     "Keep June as it is, show employer cost split by component (fixed pay vs Bonus_Incentive vs Arrears), and add a note on the June bar",
+     "Add a revenue-per-hotel view by category, with occupancy and RevPAR next to it, before any budget decision",
      true
     ],
     [
      "f2",
-     "Delete June from the chart"
+     "Approve the Luxury budget as planned"
     ],
     [
      "f3",
-     "Replace June with the average of the other months"
+     "Remove Business hotels from the chart"
     ],
     [
      "f4",
-     "Escalate to the payroll vendor for a refund"
+     "Split the budget equally across both categories"
     ]
    ],
-   "answer": "Root cause: not an error. June includes the annual performance bonus and the April–May increment arrears, and no employee has two payroll rows for any month. The <b>₹31.36 Cr June cost is real</b> and should be explained, not removed.",
-   "tell": "“Nobody was paid twice. June always carries the annual bonus and two months of increment arrears, because April increments are paid in June. I've added a component view and a note on the chart so this is clear next time.”"
+   "answer": "Root cause: the chart compares <b>totals</b> across groups of different size. Luxury has 16 hotels and Business 9. Per hotel, Business earns <b>$72.9M</b> and Luxury <b>$65.8M</b>. The totals are correct, but they cannot rank the categories.",
+   "tell": "“Luxury earns more in total only because it has 16 hotels against 9. Per hotel, Business earns $72.9M vs $65.8M for Luxury, so let's compare per-hotel returns before we fix the renovation budget.”"
   },
   {
    "id": "i4",
    "lvl": "Advanced",
-   "title": "“7,322 employees in the pay view?”",
-   "from": "Pooja Banerjee · Compensation & Benefits Lead",
-   "time": "Thu 6:15 PM",
-   "msg": "Your new compensation view has 7,322 rows, but we only have 1,338 people. I'm sending average CTC and compa-ratio from it to the appraisal committee on Monday. Can I trust it?",
+   "title": "“We're 70% full, time to add rooms”",
+   "from": "Rohan Kapoor · VP Development",
+   "time": "Thu 4:15 PM",
+   "msg": "The new mart-view dashboard shows Occupancy at 70.2% and RevPAR at $12,696, the same as ADR. That says we sell almost every room at full price. Should I start the expansion proposal for more rooms?",
    "metric": [
     [
-     "Rows in the new view",
-     "7,322"
+     "Occupancy %",
+     "70.2%"
     ],
     [
-     "Headcount on 31-Dec-2025",
-     "1,338"
+     "RevPAR",
+     "$12,696"
     ]
    ],
    "evidence": [
     {
      "id": "e1",
      "rel": true,
-     "t": "Row counts of the tables involved",
-     "sql": "SELECT COUNT(*) FROM Employees;        -- every employee since 2021\nSELECT COUNT(*) FROM Salary_History;   -- every salary revision\nSELECT COUNT(*) FROM vw_comp;          -- the new view",
+     "t": "What the 70.2% really measures",
+     "sql": "SELECT ROUND(100 * SUM(booking_status = 'Checked Out') / COUNT(*), 1) AS realisation_pct  -- 70.2\nFROM fact_bookings;",
      "res": [
       [
-       "Employees",
-       "2,299"
+       "Checked Out",
+       "94,411"
       ],
       [
-       "Salary_History",
-       "7,322"
+       "All bookings",
+       "134,590"
       ],
       [
-       "vw_comp",
-       "7,322"
+       "Realisation %",
+       "70.2%"
       ]
      ],
-     "note": "The view has exactly one row per salary revision, about 3.2 per employee."
+     "note": "70.2% is Realisation %: the share of bookings that turned into a stay. It says nothing about empty rooms."
     },
     {
      "id": "e2",
      "rel": true,
-     "t": "The new view's SQL",
-     "sql": "SELECT e.EmployeeID, e.JobLevel, s.AnnualCTC, g.BandMidCTC\nFROM Employees e\nJOIN Salary_History s ON s.EmployeeID = e.EmployeeID\nJOIN Dim_Designation g ON g.DesignationID = s.DesignationID;",
+     "t": "Occupancy from the capacity table",
+     "sql": "SELECT ROUND(100 * SUM(successful_bookings) / SUM(capacity), 1) AS occupancy_pct,  -- 57.9\n       ROUND(SUM(capacity) / 92)            AS dsrn,   -- 2,528\n       ROUND(SUM(successful_bookings) / 92) AS dbrn    -- 1,463\nFROM fact_aggregated_bookings;",
      "res": [
       [
-       "date filter on Salary_History",
-       "none"
+       "Occupancy %",
+       "57.9%"
       ],
       [
-       "headcount filter on Employees",
-       "none"
+       "DSRN (sellable / day)",
+       "2,528"
+      ],
+      [
+       "DBRN (booked / day)",
+       "1,463"
+      ],
+      [
+       "DURN (utilized / day)",
+       "1,026"
       ]
      ],
-     "note": "Salary_History is SCD Type 2: Joining, Opening Balance, Annual Increment and Promotion Increment rows all join back to the same person."
+     "note": "Capacity lives only in fact_aggregated_bookings. Real occupancy is 57.9%, and roughly 1,500 sellable room-nights a day end up empty."
     },
     {
      "id": "e3",
      "rel": true,
-     "t": "Salary record valid on 31-Dec-2025",
-     "sql": "SET @d = '2025-12-31';\nSELECT COUNT(*), AVG(s.AnnualCTC)\nFROM Employees e\nJOIN Salary_History s\n  ON s.EmployeeID = e.EmployeeID\n AND s.EffectiveFrom <= @d\n AND (s.EffectiveTo IS NULL OR s.EffectiveTo >= @d)\nWHERE e.HireDate <= @d AND (e.ExitDate IS NULL OR e.ExitDate > @d);",
+     "t": "RevPAR denominator check",
+     "sql": "SELECT ROUND((SELECT SUM(revenue_realized) FROM fact_bookings)\n           / (SELECT SUM(capacity) FROM fact_aggregated_bookings)) AS revpar;  -- 7,347\n-- the dashboard divided by SUM(successful_bookings) = 134,590 (rooms sold), which is ADR",
      "res": [
       [
-       "rows",
-       "1,338"
+       "Revenue",
+       "$1,708,771,229"
       ],
       [
-       "average CTC",
-       "₹15.88 lakh"
+       "ADR (÷ 134,590 bookings)",
+       "$12,696"
+      ],
+      [
+       "RevPAR (÷ capacity)",
+       "$7,347"
       ]
      ],
-     "note": "One row per person on the rolls, using the salary that was valid on that date."
+     "note": "RevPAR must divide by rooms available. Dividing by rooms sold just repeats ADR, and RevPAR can never exceed ADR below 100% occupancy."
     },
     {
      "id": "e4",
      "rel": false,
-     "t": "Dimension row counts",
-     "sql": "SELECT COUNT(*) FROM Dim_Designation;\nSELECT COUNT(*) FROM Dim_Department;",
+     "t": "Revenue share by city",
+     "sql": "SELECT h.city, SUM(b.revenue_realized) FROM fact_bookings b\nJOIN dim_hotels h ON h.property_id = b.property_id GROUP BY h.city;",
      "res": [
       [
-       "Dim_Designation",
-       "137"
+       "Mumbai",
+       "39.1%"
       ],
       [
-       "Dim_Department",
-       "13"
+       "Bangalore",
+       "24.6%"
+      ],
+      [
+       "Hyderabad",
+       "19.0%"
+      ],
+      [
+       "Delhi",
+       "17.2%"
       ]
      ],
-     "note": "Each designation has one row and one band. The dimensions are fine and don't create extra rows."
+     "note": "Shows where revenue comes from, not how full the hotels are."
     }
    ],
    "causes": [
     [
      "c1",
-     "Employees has duplicate EmployeeIDs"
+     "Demand really is close to capacity in every city"
     ],
     [
      "c2",
-     "Dim_Designation has several bands per designation"
-    ],
-    [
-     "c3",
-     "SCD Type 2 fan-out: every salary revision of every employee ever was joined, with no as-of-date filter, so each person repeats once per revision",
+     "The 70.2% is Realisation % from fact_bookings, and RevPAR was divided by rooms sold. Both ignore capacity, which lives only in fact_aggregated_bookings",
      true
     ],
     [
+     "c3",
+     "Cancelled bookings were left out of revenue"
+    ],
+    [
      "c4",
-     "Serving Notice employees were loaded twice"
+     "The weekend was defined as Saturday and Sunday"
     ],
     [
      "c5",
-     "Payroll_Monthly rows were mixed into the view"
+     "The 'others' platform double-counts bookings"
     ]
    ],
    "fixes": [
     [
      "f1",
-     "Join only the salary record valid on the date (EffectiveFrom ≤ d AND EffectiveTo blank or ≥ d) for people on the rolls that day → 1,338 rows, average CTC ₹15.88 lakh, plus a QA check that view rows = headcount",
+     "Rebuild Occupancy % and RevPAR from fact_aggregated_bookings: SUM(successful_bookings) ÷ SUM(capacity) and revenue ÷ SUM(capacity), summed at their own grain, and relabel 70.2% as Realisation %",
      true
     ],
     [
      "f2",
-     "Filter Salary_History on IsCurrent = 'Yes' only"
+     "Keep 70.2% and add a note that it is approximate"
     ],
     [
      "f3",
-     "Use SELECT DISTINCT on the view"
+     "SUM(capacity) from the mart view so both KPIs come from one table"
     ],
     [
      "f4",
-     "Divide every total by the average number of revisions"
+     "Hide RevPAR because it duplicates ADR"
     ]
    ],
-   "answer": "Root cause: SCD Type 2 fan-out. Salary_History keeps one row per revision (7,322 rows), and the view joined all of them with no date filter. The correct view has <b>1,338 rows</b> and average CTC <b>₹15.88 lakh</b>. IsCurrent = 'Yes' is not enough, because the 26 Serving Notice employees have IsCurrent = 'No'.",
-   "tell": "“Please don't use the current numbers. The view picked up every past salary revision, not just today's salary. I've fixed it to use the salary valid on 31-Dec-2025: 1,338 people, average CTC ₹15.88 lakh. I've also added a check that the view's row count equals headcount.”"
+   "answer": "Root cause: the card labelled Occupancy shows <b>Realisation %</b> (94,411 ÷ 134,590 = 70.2%), and RevPAR was divided by rooms sold, so it equals ADR ($12,696). Capacity sits only in fact_aggregated_bookings and repeats on every row of the mart view, so it must be summed in its own table. Correct: <b>Occupancy 57.9%</b> and <b>RevPAR $7,347</b>. About 1,500 sellable room-nights a day stay empty.",
+   "tell": "“We're not 70% full. That figure is the share of bookings that turned into stays. Real occupancy is 57.9% and RevPAR is $7,347, with about 1,500 room-nights a day unsold, so the case is for filling rooms, not adding them.”"
   }
  ],
  "broken": {
-  "from": "CHRO",
+  "from": "Group Revenue Manager",
   "brief": "“A junior analyst built this for tomorrow's leadership review. Something feels off. Flag every number you would NOT present, then submit.”",
-  "title": "Proxima · Workforce & Attrition · CY2025",
+  "title": "ShodweStay · Booking & Occupancy Overview · May–Jul 2022",
   "tiles": [
    {
     "id": "t1",
-    "label": "Headcount (31-Dec-2025)",
-    "val": "1,312",
-    "bad": true,
-    "why": "Counts only EmploymentStatus = 'Active' and drops 26 Serving Notice employees who are still on the rolls. Correct (HireDate / ExitDate rule): 1,338."
+    "label": "Total Bookings",
+    "val": "134,590",
+    "bad": false,
+    "why": "Correct: COUNT(*) of fact_bookings."
    },
    {
     "id": "t2",
-    "label": "New Hires",
-    "val": "252",
+    "label": "Revenue (realized)",
+    "val": "$1,708,771,229",
     "bad": false,
-    "why": "Correct: employees with HireDate in 2025."
+    "why": "Correct: SUM(revenue_realized), where cancelled bookings keep only 60% of revenue_generated."
    },
    {
     "id": "t3",
-    "label": "Exits",
-    "val": "987",
+    "label": "Occupancy %",
+    "val": "70.2%",
     "bad": true,
-    "why": "COUNTROWS(Exit_Details) with no date or ExitStatus filter: every exit since 2021 (961) plus the 26 Serving Notice rows. Correct (ExitStatus = 'Exited', LastWorkingDate in 2025): 175."
+    "why": "Checked-out ÷ all bookings from fact_bookings. That is Realisation %, not occupancy. Correct: SUM(successful_bookings) ÷ SUM(capacity) from fact_aggregated_bookings = 57.9%."
    },
    {
     "id": "t4",
-    "label": "Attrition %",
-    "val": "13.1%",
-    "bad": true,
-    "why": "Exits ÷ closing headcount (175 ÷ 1,338). This understates attrition in a growing company. Correct: 175 ÷ average headcount 1,299.5 = 13.5%."
+    "label": "ADR",
+    "val": "$12,696",
+    "bad": false,
+    "why": "Correct per the KPI register: revenue ÷ total bookings (134,590)."
    },
    {
     "id": "t5",
-    "label": "Voluntary Attrition %",
-    "val": "11.5%",
-    "bad": false,
-    "why": "Correct: 150 voluntary exits ÷ average headcount 1,299.5."
+    "label": "RevPAR",
+    "val": "$12,696",
+    "bad": true,
+    "why": "Revenue ÷ SUM(successful_bookings), i.e. rooms sold, so it just repeats ADR. RevPAR divides by rooms available and must be below ADR when occupancy is under 100%. Correct: revenue ÷ SUM(capacity) = $7,347."
    },
    {
     "id": "t6",
-    "label": "Female %",
-    "val": "35.8%",
+    "label": "Cancellation %",
+    "val": "24.8%",
     "bad": false,
-    "why": "Correct: 479 women ÷ closing headcount 1,338."
+    "why": "Correct: 33,420 cancelled ÷ 134,590 bookings."
    },
    {
     "id": "t7",
-    "label": "Average Annual CTC",
-    "val": "₹15.88 L",
-    "bad": false,
-    "why": "Correct: average AnnualCTC from the Salary_History record valid on 31-Dec-2025, for people on the rolls."
+    "label": "Average Rating",
+    "val": "1.52 / 5",
+    "bad": true,
+    "why": "Blank ratings were treated as 0 and divided by all 134,590 bookings. Cancelled and no-show guests can never rate. Correct: AVG over rated stays = 3.62, shown with 42.1% coverage."
    },
    {
     "id": "t8",
-    "label": "Employees in Pay Analysis",
-    "val": "7,322",
+    "label": "Top Booking Channel",
+    "val": "others · 40.9%",
     "bad": true,
-    "why": "Salary_History (SCD Type 2) was joined without a date filter, so every salary revision became a row. Correct: 1,338, one salary record per person on 31-Dec-2025."
+    "why": "'others' is an unnamed catch-all bucket, not a channel, and the four named platforms together bring more (64,663). Correct: flag 'others' as a data gap; the biggest named channel is makeyourtrip at 20.0%."
    },
    {
     "id": "t9",
-    "label": "Top Voluntary Exit Reason",
-    "val": "Better Compensation (23.4%)",
+    "label": "Best Category (revenue per hotel)",
+    "val": "Luxury · $1,052.8M",
     "bad": true,
-    "why": "This is the 2024 value: the visual was not filtered to 2025. Correct for CY2025: Better Compensation, 38 of 150 voluntary exits = 25.3%."
+    "why": "Shows the Luxury category total, which is bigger only because Luxury has 16 hotels vs 9. Correct: per hotel, Business leads with $72.9M vs $65.8M for Luxury."
    },
    {
     "id": "t10",
-    "label": "eNPS (2025 survey)",
-    "val": "+16.1",
+    "label": "Mumbai Share of Revenue",
+    "val": "39.1%",
     "bad": false,
-    "why": "Correct: % promoters (score 9–10) − % detractors (score 0–6) of the 2025 survey responses."
+    "why": "Correct: Mumbai revenue_realized ($668.6M) ÷ total revenue_realized."
    }
   ],
   "chart": {
-   "title": "Attrition hotspots: exits by department, 2025",
+   "title": "Booking % by platform",
    "bars": [
     [
-     "Engineering",
-     "61",
-     90
+     "others",
+     "100%",
+     100
     ],
     [
-     "Customer Success & Support",
-     "29",
-     43
+     "makeyourtrip",
+     "100%",
+     100
     ],
     [
-     "Sales & Business Development",
-     "19",
-     28
+     "logtrip",
+     "100%",
+     100
     ],
     [
-     "Data & Analytics",
-     "16",
-     24
+     "direct online",
+     "100%",
+     100
     ],
     [
-     "Quality Assurance",
-     "16",
-     24
+     "tripster",
+     "100%",
+     100
     ]
    ],
    "bad": true,
-   "why": "Raw exit counts follow department size. Engineering has 481 of the 1,338 employees, so it will always top a count chart. A hotspot needs a rate: exits ÷ the department's average headcount. Correct: Customer Success & Support leads at 18.5% (17.3% voluntary), then Sales & Business Development at 16.5%. Engineering is 13.0%."
+   "why": "Every row shows 100% because ALL() is missing from the denominator, so each platform is divided by itself. Correct: others 40.9%, makeyourtrip 20.0%, logtrip 11.0%, direct online 9.9%, tripster 7.2%."
   }
  },
  "stakeholders": [
   {
    "id": "s1",
-   "who": "Anita Deshpande · CHRO",
-   "ask": "I need an attrition dashboard.",
+   "who": "Sunita Deshpande · Group Revenue Manager",
+   "ask": "I need a dashboard to see how our hotels are doing.",
    "qs": [
     [
-     "What decision will this dashboard help you make?",
+     "What decision will this dashboard help you make each week?",
      "obj",
      18,
-     "Where to focus next year's retention budget: which departments and which groups of people."
+     "Where to change prices and run offers: which city, which room class, which days."
     ],
     [
-     "Who else will use it: you, the department heads, or the board?",
+     "Who else will use it: you, the hotel GMs, or group leadership?",
      "scope",
      14,
-     "Me and the department heads. The board gets a one-page summary."
+     "Me and the 25 GMs. Leadership gets a one-page summary."
     ],
     [
-     "Which attrition do you care about most: total, voluntary or regrettable?",
+     "What does 'doing well' mean for you: revenue, occupancy, or RevPAR?",
      "metric",
      18,
-     "Voluntary first, and regrettable next to it. Involuntary only for context."
+     "RevPAR first, then occupancy and ADR. Revenue alone hides empty rooms."
     ],
     [
-     "Which departments and employee types are in scope?",
+     "Which hotels, cities and room classes are in scope?",
      "scope",
      10,
-     "All departments, Full-Time and Contract, but let me filter by department, level and location."
+     "All 25 hotels in the 4 cities and all 4 room classes."
     ],
     [
-     "Which period, and do you want a comparison?",
+     "Which period, and do you want week-over-week comparison?",
      "time",
      16,
-     "Calendar 2025 compared with 2024, by month."
+     "May to July 2022, with week-over-week change on every main KPI."
     ],
     [
-     "Should Serving Notice employees count as exits?",
+     "Which revenue counts: generated or realized?",
      "rules",
      14,
-     "No. They count as exits only after their last working day."
+     "Realized. Cancelled bookings only keep 60%, and that's what we actually earn."
     ],
     [
-     "Should attrition use average headcount as the base?",
+     "Which days count as the weekend?",
      "rules",
      12,
-     "Yes, (opening + closing) ÷ 2, as in the KPI document."
+     "Friday and Saturday. Use day_type from dim_date, not the calendar weekend."
     ],
     [
      "How often should it refresh?",
      "time",
      6,
-     "Monthly, after payroll closes."
+     "Daily is ideal, weekly is the minimum."
     ],
     [
      "Which colour theme do you like?",
@@ -742,13 +790,13 @@ window.SIM_CONTENT = {
      "Whatever is readable. (A question for later, not for scoping.)"
     ],
     [
-     "Should I show each leaver's name and salary?",
+     "Should I put every column on the dashboard?",
      "bad",
      -8,
-     "No. HR data is sensitive. Keep it aggregated."
+     "No, only what supports pricing decisions."
     ],
     [
-     "Can I use last year's Excel file instead of the database?",
+     "Can I build it from the Excel files instead of the database?",
      "bad",
      -6,
      "Use the database, so QA can reconcile."
@@ -757,62 +805,62 @@ window.SIM_CONTENT = {
   },
   {
    "id": "s2",
-   "who": "Vikram Choudhary · Head of Talent Acquisition",
-   "ask": "Why is our hiring so slow? I need an answer by Friday.",
+   "who": "Vikram Malhotra · Head of Distribution",
+   "ask": "Which booking channel should we put more money into?",
    "qs": [
     [
-     "What would you change depending on the answer?",
+     "What would you do differently depending on the answer?",
      "obj",
      18,
-     "Whether to add recruiters, change sources, or push hiring managers to finish interviews faster."
+     "Shift commission budget between OTAs and grow direct online if it pays."
     ],
     [
-     "Does 'slow' mean time to fill, time to hire or time to join?",
+     "Does 'best channel' mean most bookings, most revenue, or fewest cancellations?",
      "metric",
      18,
-     "Time to fill first: requisition opened to closed. Time to join is mostly notice period."
+     "Revenue kept after cancellations. Volume alone isn't enough."
     ],
     [
-     "Should I compare by department, level or recruiter?",
+     "Should I compare OTAs with direct online, or all platforms?",
      "scope",
      14,
-     "Level and department first. Recruiter only inside my team."
+     "All platforms, but direct online vs the OTAs is the key comparison."
     ],
     [
-     "Do you also want cost per hire by source?",
+     "Do you want cancellation % and no-show % by platform too?",
      "metric",
      12,
-     "Yes. Speed alone can make an expensive source look good."
+     "Yes. A channel that cancels a lot costs us rooms we could have sold."
     ],
     [
-     "Which period: last quarter, last year, or both years?",
+     "Which period: the whole quarter, or month by month?",
      "time",
      16,
-     "2025 compared with 2024."
+     "The full May–July period, plus a monthly trend."
     ],
     [
-     "Should Campus Hiring requisitions be included in time to fill?",
+     "How should I treat the 'others' platform?",
      "rules",
      14,
-     "No. They open months before students join, so they distort the average."
+     "Show it, but label it as unidentified. Don't treat it as a real channel."
     ],
     [
-     "Which requisitions count: only Filled, or Open and On Hold too?",
+     "Should platform shares add to 100% across all platforms?",
      "rules",
      8,
-     "Time to fill on Filled only. Show Open and On Hold separately as the backlog."
+     "Yes, share of all bookings."
     ],
     [
-     "Should I break it down by location?",
+     "Should I split it by city and room class?",
      "scope",
      6,
-     "Only if one office stands out."
+     "City yes. Room class only if something stands out."
     ],
     [
-     "Can I add a word cloud of candidate feedback?",
+     "Can I hide 'others' so the chart looks cleaner?",
      "bad",
      -8,
-     "Not needed for this decision."
+     "No. Hiding it makes every other share wrong."
     ],
     [
      "Should I build it in Excel, Tableau and Power BI?",
@@ -821,7 +869,7 @@ window.SIM_CONTENT = {
      "One tool is enough for this question."
     ],
     [
-     "Do you want a 3D funnel chart?",
+     "Do you want a 3D pie chart?",
      "bad",
      -8,
      "No."
@@ -830,68 +878,68 @@ window.SIM_CONTENT = {
   },
   {
    "id": "s3",
-   "who": "Meera Iyer · CFO",
-   "ask": "Tell me what our people cost.",
+   "who": "Arvind Menon · CFO",
+   "ask": "Should the renovation budget go to our Luxury hotels?",
    "qs": [
     [
-     "Is this for next year's budget or for reporting?",
+     "Is this for a budget decision or for a report?",
      "obj",
      18,
-     "Budget: we're setting next year's salary and hiring budget."
+     "Budget: we're choosing where next year's renovation money goes."
     ],
     [
-     "Which cost: CTC, gross pay, or total employer cost?",
+     "Should I compare total revenue, or revenue per hotel?",
      "metric",
      18,
-     "Total employer cost from payroll. CTC only as a reference."
+     "Per hotel. We have 16 Luxury and only 9 Business hotels, so totals aren't fair."
     ],
     [
-     "Should employer PF, ESI and gratuity be included?",
+     "Should I add occupancy and RevPAR by category, not just revenue?",
      "metric",
      12,
-     "Yes. Show them as a separate statutory line."
+     "Yes. I want to see if rooms are full as well as how much they earn."
     ],
     [
-     "Do you need it by department and level, or company total only?",
+     "All 25 hotels, or only the ones on the renovation shortlist?",
      "scope",
      14,
-     "By department and level, with the company total on top."
+     "All 25, with the shortlisted hotels highlighted."
     ],
     [
-     "Calendar year or financial year?",
+     "Which period should I use?",
      "time",
      16,
-     "Financial year (April to March), plus calendar 2025 for comparison."
+     "The full May–July 2022 data."
     ],
     [
-     "How should the June bonus and arrears be shown?",
+     "Should revenue be realized revenue, after cancellations?",
      "rules",
      14,
-     "Keep them, but split them out so the June spike is explained."
+     "Yes, revenue_realized only."
     ],
     [
-     "Should cost come from payroll actually paid, or from CTC?",
+     "Should occupancy come from the capacity table only?",
      "rules",
      10,
-     "Actually paid, from Payroll_Monthly. Finance reconciles to that."
+     "Yes. Capacity must be summed at its own grain, not after a join."
     ],
     [
-     "Should I include people who left during the year?",
+     "Do you need it by city as well as by category?",
      "scope",
      8,
-     "Yes, for the months they were paid."
+     "Yes. Mumbai is 39% of revenue, so show city next to category."
     ],
     [
-     "Can I round everything to crores?",
+     "Can I make it a 3D pie chart so it looks premium?",
      "bad",
-     -4,
-     "Crores for totals, lakhs for averages."
+     -6,
+     "No. Two categories and per-hotel values read better as a simple bar."
     ],
     [
-     "Should I include training hours in people cost?",
+     "Should I include guest ratings in the revenue figure?",
      "bad",
      -8,
-     "Hours aren't money. Keep them out."
+     "Ratings aren't money. Show them separately."
     ],
     [
      "Can I skip QA to deliver faster?",

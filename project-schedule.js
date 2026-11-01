@@ -1,11 +1,11 @@
 /* Project schedule & group status. Edit it from the site (Trainer login), then replace this file. */
 window.PROJECT_SCHEDULE = {
- "pinHash": "732d764dbad75cdb6eed797b22e0ca4ecf7f6a17c8a41a5de1b924e80ad5667f",
- "active": "HR-OCT26",
+ "pinHash": "6755560db4ffc131cd61f03df9b2dae8588a8854444055efa3c816d799729bc4",
+ "active": "HOSP-OCT26",
  "projects": [
   {
-   "code": "HR-OCT26",
-   "name": "HR Analytics Capstone",
+   "code": "HOSP-OCT26",
+   "name": "Hospitality Analytics Capstone",
    "kickoff": "2026-10-02",
    "presDay": 6,
    "time": "9:00 PM – 10:00 PM",
